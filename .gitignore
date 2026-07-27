@@ -1,0 +1,58 @@
+```gitignore
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Environment variables
+.env
+.env.local
+.env.*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Logs
+*.log
+
+# Coverage reports
+coverage/
+htmlcov/
+.coverage
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# TypeScript/JavaScript cache
+*.tsbuildinfo
+.nyc_output/
+
+# Package lock files
+package-lock.json
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Tauri
+**/tauri**
+
+# Vite
+.vite/
+
+# PostCSS
+.postcss-cache/
+
+# TypeScript
+tsconfig.tsbuildinfo
+```
