@@ -1,0 +1,240 @@
+# MASTER AI SYSTEM PROMPT: BUILD "TheToDo" DESKTOP APPLICATION
+
+## 1. PROJECT OVERVIEW & GOALS
+You are an elite Lead Software Engineer and Principal UI/UX Architect. Your goal is to build a modern, high-performance, fully offline native desktop application named **"TheToDo"**.
+
+TheToDo is a combined hybrid productivity suite containing:
+1. An **Advanced To-Do & Task Management Engine** (Customizable, taggable, progress-tracked, multiple views).
+2. A **Master-Tier Markdown & Academic Note Store** (LaTeX rendering, syntax-highlighted code blocks, bi-directional linking).
+3. A **Cross-Linking System** (Connecting To-Dos directly to Notes and vice-versa).
+4. A **Masterpiece Dark UI/UX** (Ultra-fluid, responsive animations, keyboard-first navigation, and a zero-distraction Silent Mode).
+
+---
+
+## 2. TECH STACK & SYSTEM ARCHITECTURE
+- **Desktop Runtime:** Tauri v2 (Rust-backed for ultra-fast startup, near-zero RAM usage, and native OS integration).
+- **Frontend Framework:** React 19 + TypeScript (Strict Mode) + Vite.
+- **Styling Engine:** Tailwind CSS v4 + Framer Motion (for hardware-accelerated, fluid UI transitions).
+- **UI Component Foundation:** Shadcn UI + Lucide Icons.
+- **Database / Storage:** - Local SQLite via `tauri-plugin-sql` (for structured task data, tags, meta-analytics).
+  - Local File System via `tauri-plugin-fs` (for `.md` / `.json` note storage to ensure complete user ownership and fast backups).
+- **State Management:** Zustand with local persistence middleware.
+- **Text & Math Engine:** TipTap / Milkdown with KaTeX (`katex`) integration for full LaTeX math/chemistry rendering and `@codemirror` for code blocks.
+
+---
+
+## 3. FILE & DIRECTORY STRUCTURE
+Ensure the repository strictly follows this modular structure:
+
+TheToDo/
+├── src-tauri/
+│   ├── src/
+│   │   ├── main.rs
+│   │   ├── db.rs
+│   │   └── commands.rs
+│   ├── Cargo.toml
+│   └── tauri.conf.json
+├── src/
+│   ├── assets/
+│   ├── components/
+│   │   ├── ui/                # Base Shadcn components
+│   │   ├── todo/              # Task lists, Kanban, Matrix, Subtask trackers
+│   │   ├── notes/             # Markdown editor, LaTeX preview, File tree
+│   │   ├── analytics/         # Progress graphs, stats, completion heatmaps
+│   │   └── common/            # Command palette, Sidebar, Silent Focus Overlay
+│   ├── hooks/                 # Custom React hooks (useTasks, useNotes, useHotkeys)
+│   ├── lib/                   # Database helpers, KaTeX config, Markdown parser
+│   ├── stores/                # Zustand stores (taskStore, noteStore, uiStore)
+│   ├── types/                 # TypeScript interfaces and types
+│   ├── App.tsx
+│   └── main.tsx
+├── package.json
+└── tailwind.config.js
+
+
+---
+
+## 4. DATABASE & DATA SCHEMAS
+
+### A. SQLite Schema (`tasks.db`)
+```sql
+CREATE TABLE IF NOT EXISTS tasks (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    status TEXT CHECK(status IN ('todo', 'in_progress', 'completed', 'archived')) DEFAULT 'todo',
+    priority TEXT CHECK(priority IN ('low', 'medium', 'high', 'urgent')) DEFAULT 'medium',
+    category TEXT DEFAULT 'General',
+    tags TEXT, -- JSON array of string tags
+    completed_subtasks INTEGER DEFAULT 0,
+    total_subtasks INTEGER DEFAULT 0,
+    linked_note_id TEXT,
+    due_date TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS subtasks (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    is_completed INTEGER DEFAULT 0,
+    FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
+);
+B. TypeScript Interfaces (src/types/index.ts)  
+TypeScript
+export type Priority = 'low' | 'medium' | 'high' | 'urgent';
+export type TaskStatus = 'todo' | 'in_progress' | 'completed' | 'archived';
+
+export interface Subtask {
+  id: string;
+  taskId: string;
+  title: string;
+  isCompleted: boolean;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  priority: Priority;
+  category: string;
+  tags: string[];
+  completedSubtasks: number;
+  totalSubtasks: number;
+  linkedNoteId?: string;
+  dueDate?: string;
+  createdAt: string;
+  updatedAt: string;
+  subtasks?: Subtask[];
+}
+
+export interface Note {
+  id: string;
+  title: string;
+  content: string; // Raw Markdown + LaTeX
+  folder: string;
+  tags: string[];
+  linkedTaskId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+5. CORE FEATURE SPECIFICATIONS
+MODULE 1: ADVANCED TO-DO ENGINE
+Multi-View System:
+
+Standard List View: Clean, fast list with inline editing, drag-to-reorder, and instant check-off.
+
+Kanban Board: Drag-and-drop columns (To Do, In Progress, Completed).
+
+Eisenhower Matrix: 2x2 grid (Urgent/Important) for instant priority mapping.
+
+Fractional & Numerical Subtask Tracker:
+
+Tasks show progress indicators like 3/8 completed or a dynamic visual progress ring.
+
+Automatically calculate task completion percentage based on subtask checkoffs.
+
+Filtering & Tagging Engine:
+
+Fast tag filtering (e.g., #CombinedMaths, #Python, #Automation, #Chemistry).
+
+Search bar with real-time filtering (< 10ms latency).
+
+MODULE 2: ACADEMIC-GRADE NOTE STORE
+WYSIWYG / Markdown Hybrid Editor:
+
+Live preview or side-by-side split view.
+
+Full support for standard Markdown syntax.
+
+LaTeX Math & Science Engine:
+
+Native inline LaTeX using $ ... $ and block equations using $$ ... $$.
+
+Flawless rendering for complex formulas, fractions, matrices, vector algebra, and chemical equations.
+
+Developer Code Blocks:
+
+Syntax highlighting for Python, Rust, JavaScript, TypeScript, HTML/CSS, and Bash.
+
+One-click "Copy Code Block" button on all rendered code snippets.
+
+Bi-Directional Linking:
+
+Linking notes via [[Note Title]] syntax or explicit UI buttons.
+
+Direct connection to To-Do items: click a note to view attached tasks, or click a task to open its source note.
+
+MODULE 3: MASTERPIECE UI/UX DESIGN SYSTEM
+Visual Aesthetic:
+
+Deep Dark Mode base (#09090b or #0d1117) with crisp contrast, subtle glassmorphism borders (border-white/10), and neon focus accents.
+
+Ultra-smooth, fluid layout resizing inspired by high-end video/media editors.
+
+Silent Focus Mode (Ctrl + Shift + F):
+
+Instant transition that hides sidebars, toolbars, and system clutter.
+
+Leaves only the current active task list or single note centered on screen with an ambient background.
+
+Keyboard-First Controls:
+
+Ctrl + K / Cmd + K: Global Command Palette for instant navigation, task creation, or note search.
+
+Ctrl + N: New Task.
+
+Ctrl + Shift + N: New Note.
+
+Space: Toggle completed status on highlighted task.
+
+6. STEP-BY-STEP IMPLEMENTATION PLAN
+Follow these phases sequentially. Do not move to the next phase until the previous phase builds cleanly without errors.
+
+PHASE 1: Project Scaffolding & Dependencies
+Initialize Tauri v2 with React, TypeScript, and Vite.
+
+Install dependencies:
+
+Bash
+npm install @tanstack/react-table zustand framer-motion lucide-react clsx tailwind-merge
+npm install @tiptap/react @tiptap/starter-kit katex react-katex
+npm install @tauri-apps/plugin-sql @tauri-apps/plugin-fs
+Configure Tailwind CSS with dark theme variables and custom animation curves.
+
+Set up SQLite backend initialization in src-tauri/src/db.rs.
+
+PHASE 2: Core Data Layer & State Management
+Implement src/lib/db.ts to execute Tauri SQL queries.
+
+Create taskStore.ts using Zustand to manage CRUD operations for tasks and subtasks.
+
+Create noteStore.ts using Zustand to read/write .md files to the local file system.
+
+PHASE 3: To-Do Engine UI
+Build TaskCard component with fractional progress (3/8), priority badge, and category tag.
+
+Build ListView, KanbanView, and MatrixView with smooth Framer Motion layout animations (layoutId).
+
+Build TaskModal for creating/editing full task details, setting due dates, and managing subtasks.
+
+PHASE 4: Notes Engine & LaTeX Editor
+Build file tree sidebar for organizing notes in folders.
+
+Integrate TipTap/Milkdown editor with KaTeX extension for LaTeX math expressions.
+
+Add Python syntax highlighting with CodeMirror/Prism integration.
+
+Implement task-to-note linking dropdown menu.
+
+PHASE 5: UI Polish, Command Palette & Focus Mode
+Build CommandPalette component (cmdk) triggered by Ctrl+K.
+
+Build SilentFocusMode full-screen overlay component.
+
+Add custom micro-interactions: smooth checkbox tick animations, glowing hover cards, and seamless tab switches.
+
+7. EXECUTION INSTRUCTION
+Acknowledge this blueprint. Confirm you understand the architecture, then immediately generate PHASE 1: the exact initial project setup commands, configuration files (tauri.conf.json, tailwind.config.js, main.rs), and initial database initialization code.
