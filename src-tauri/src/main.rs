@@ -166,6 +166,11 @@ fn collapse_quick_capture(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Port the reading engine listens on, kept in one place so the webview never
+/// needs to know it.
+#[derive(Clone)]
+pub struct EnginePort(pub u16);
+
 /// Read ClassRadar's exported schedule.
 ///
 /// Done in Rust rather than through the fs plugin on purpose: Tauri v2's fs
@@ -206,6 +211,73 @@ fn classradar_default_path() -> String {
     format!("{base}/ClassRadar/data/schedule.json")
 }
 
+/// Talk to the reading engine (ClassRadar) from Rust.
+///
+/// The engine stays a separate process on its own port. Forwarding through a
+/// command keeps the URL and the port in one place, means the webview never
+/// needs a CORS exemption or to know where the engine is, and gives a single
+/// place to answer "is it even running?".
+#[tauri::command]
+async fn engine_request(
+    state: tauri::State<'_, EnginePort>,
+    path: String,
+    method: String,
+    body: Option<String>,
+) -> Result<String, String> {
+    if path.starts_with('/') || path.contains("..") {
+        return Err("Bad engine path".to_string());
+    }
+
+    let client = reqwest::Client::new();
+    let url = format!("http://127.0.0.1:{}{}", state.0, path);
+    let m = reqwest::Method::from_bytes(method.to_uppercase().as_bytes())
+        .map_err(|e| format!("Bad method: {e}"))?;
+
+    let mut req = client.request(m, &url);
+    if let Some(b) = body {
+        req = req
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .body(b);
+    }
+
+    let res = req
+        .send()
+        .await
+        .map_err(|e| format!("The reading engine is not reachable on port {}: {e}", state.0))?;
+    let status = res.status();
+    let text = res.text().await.unwrap_or_default();
+    if !status.is_success() {
+        return Err(format!("Engine said {status}: {text}"));
+    }
+    Ok(text)
+}
+
+/// Whether anything is listening for the engine, so the UI can say so plainly
+/// instead of every panel failing with a connection error.
+#[tauri::command]
+async fn engine_alive(state: tauri::State<'_, EnginePort>) -> Result<bool, String> {
+    Ok(reqwest::Client::new()
+        .get(format!("http://127.0.0.1:{}/api/health", state.0))
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false))
+}
+
+/// Start the engine as a child process, so the student does not have to run a
+/// second app by hand. The path is where the engine's bundle lives.
+#[tauri::command]
+async fn engine_start(app: tauri::AppHandle, engine_path: String) -> Result<u32, String> {
+    let mut sidecar = tauri_plugin_shell::ShellExt::shell(&app)
+        .sidecar("classradar-engine")
+        .map_err(|e| format!("Engine sidecar is not available: {e}"))?;
+    let (mut rx, _child) = sidecar
+        .spawn()
+        .map_err(|e| format!("Could not start the engine from {engine_path}: {e}"))?;
+    rx.recv().await;
+    Ok(0)
+}
+
 fn main() {
     // Global shortcut: Ctrl+Shift+X toggles the Quick Capture overlay from anywhere.
     let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyX);
@@ -240,8 +312,12 @@ fn main() {
             expand_quick_capture,
             collapse_quick_capture,
             read_classradar_schedule,
-            classradar_default_path
+            classradar_default_path,
+            engine_request,
+            engine_alive,
+            engine_start
         ])
+        .manage(EnginePort(std::env::var("CLASSRADAR_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(5188)))
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

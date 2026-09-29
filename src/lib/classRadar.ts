@@ -38,8 +38,8 @@ export interface RadarBooster {
   kind: string;
   episode: number | null;
   tute: string | null;
-  questionStart: number | null;
-  questionEnd: number | null;
+  /** The exact questions to do. Chosen from across the chapter, so not a range. */
+  questions: number[];
   questionCount: number | null;
   postedAt: number;
   channel: string;
@@ -194,9 +194,8 @@ export function toStudyPointer(plan: RadarBooster[]): StudyPointer | null {
     kind: latest.kind === 'speed' || latest.kind === 'theory' ? latest.kind : 'other',
     episode: latest.episode ?? null,
     tute: latest.tute ?? null,
-    questionStart: latest.questionStart ?? null,
-    questionEnd: latest.questionEnd ?? null,
-    questionCount: latest.questionCount ?? null,
+    questions: Array.isArray(latest.questions) ? latest.questions : [],
+    questionCount: latest.questionCount ?? latest.questions?.length ?? null,
     postedAt: latest.postedAt,
     headline: latest.headline ?? null,
     original: latest.original ?? '',

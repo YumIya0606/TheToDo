@@ -10,6 +10,16 @@ import { cn } from '@/lib/utils';
  * tiles, and passing this state down as a prop would defeat that memo for every
  * tile on every study-plan change.
  */
+/** A long question list is unreadable inline, so collapse it. */
+function questionLabel(questions: number[], count: number | null): string | null {
+  const n = questions.length || count || 0;
+  if (!n) return null;
+  if (!questions.length) return `${n} question${n === 1 ? '' : 's'}`;
+  const shown = questions.slice(0, 6).join(', ');
+  const rest = questions.length - 6;
+  return `${n} question${n === 1 ? '' : 's'}: ${shown}${rest > 0 ? ` +${rest} more` : ''}`;
+}
+
 export function StudyPointerBanner({
   pointer,
   light,
@@ -26,12 +36,7 @@ export function StudyPointerBanner({
 }) {
   if (!pointer) return null;
 
-  const range =
-    pointer.questionStart != null && pointer.questionEnd != null
-      ? pointer.questionStart === pointer.questionEnd
-        ? `Q${pointer.questionStart}`
-        : `Q${pointer.questionStart}–${pointer.questionEnd}`
-      : null;
+  const qLabel = questionLabel(pointer.questions, pointer.questionCount);
 
   return (
     <motion.div
@@ -71,15 +76,15 @@ export function StudyPointerBanner({
               {pointer.tute}
             </span>
           )}
-          {pointer.questionCount != null && (
+          {qLabel && (
             <span
               className={cn(
                 'px-1.5 py-0.5 rounded text-[9.5px]',
                 light ? 'bg-slate-100 text-slate-600' : 'bg-white/5 text-slate-400'
               )}
+              title={pointer.questions.length ? pointer.questions.join(', ') : undefined}
             >
-              {pointer.questionCount} question{pointer.questionCount === 1 ? '' : 's'}
-              {range ? ` (${range})` : ''}
+              {qLabel}
             </span>
           )}
         </div>

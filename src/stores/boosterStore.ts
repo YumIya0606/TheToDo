@@ -116,8 +116,9 @@ export interface StudyPointer {
   kind: BoosterKind | 'other';
   episode: number | null;
   tute: string | null;
-  questionStart: number | null;
-  questionEnd: number | null;
+  /** The exact questions to do. They are picked from across the chapter, so
+   *  this is a list and not a start/end range. */
+  questions: number[];
   questionCount: number | null;
   postedAt: number;
   headline: string | null;

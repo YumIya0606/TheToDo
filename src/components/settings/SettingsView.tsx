@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Moon, Sun, Bell, Info, Download, Upload, CheckCircle2, AlertCircle, ShieldCheck, FolderOpen, Radio } from 'lucide-react';
+import { Moon, Sun, Bell, Info, Download, Upload, CheckCircle2, AlertCircle, ShieldCheck, FolderOpen, Radio, KeyRound } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { useNoteStore } from '@/stores/noteStore';
@@ -14,8 +14,9 @@ import { defaultSchedulePath, loadSchedule } from '@/lib/classRadar';
 import { toStudyPointer } from '@/lib/classRadar';
 import { useBoosterStore } from '@/stores/boosterStore';
 import { emit } from '@tauri-apps/api/event';
+import { EngineConnectionsPanel } from './EngineConnectionsPanel';
 
-export function SettingsView() {
+export function SettingsView({ onRefresh }: { onRefresh?: () => void } = {}) {
   const { theme, toggleTheme } = useUIStore();
   const { tasks } = useTaskStore();
   const { notes } = useNoteStore();
@@ -232,6 +233,19 @@ export function SettingsView() {
             <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white transition-transform', theme === 'dark' ? 'translate-x-6' : 'translate-x-1')} />
           </button>
         </div>
+      </section>
+
+      {/* API keys and connections */}
+      <section className={card}>
+        <h3 className="text-base font-semibold text-slate-200 flex items-center gap-2 mb-1">
+          <KeyRound className="h-4 w-4 text-cyan-400" /> API keys &amp; connections
+        </h3>
+        <p className={cn(desc, 'mb-4')}>
+          Free tiers cap requests <em>per key</em>, so more than one key for a connection multiplies
+          how much you can get through. ClassRadar tracks which key is working, which is throttled
+          and which was rejected, and routes around the problem on its own.
+        </p>
+        <EngineConnectionsPanel onRefresh={onRefresh ?? (() => {})} />
       </section>
 
       {/* ClassRadar */}

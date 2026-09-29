@@ -551,17 +551,22 @@ function StudyPlanList({ plan }: { plan: RadarBooster[] }) {
                   {b.tute}
                 </span>
               )}
-              {b.questionCount != null && (
-                <span className="px-1.5 py-0.5 rounded text-[9px] bg-white/5 text-slate-400">
-                  {b.questionCount} question{b.questionCount === 1 ? '' : 's'}
-                  {b.questionStart != null && b.questionEnd != null && b.questionStart !== b.questionEnd
-                    ? ` (#${b.questionStart}–${b.questionEnd})`
-                    : b.questionStart != null
-                      ? ` (#${b.questionStart})`
-                      : ''}
+              {(b.questions?.length ?? 0) > 0 && (
+                <span
+                  className="px-1.5 py-0.5 rounded text-[9px] bg-white/5 text-slate-400"
+                  title={b.questions.join(', ')}
+                >
+                  {b.questions.length} question{b.questions.length === 1 ? '' : 's'}:{' '}
+                  {b.questions.slice(0, 8).join(', ')}
+                  {b.questions.length > 8 ? ` +${b.questions.length - 8} more` : ''}
                 </span>
               )}
             </div>
+            {b.questions?.length ? (
+              <p className="text-[10.5px] text-slate-500 mt-1 font-mono">
+                {b.questions.join(', ')}
+              </p>
+            ) : null}
             {b.headline && <p className="text-[12.5px] text-slate-300 mt-1">{b.headline}</p>}
           </div>
         </div>
