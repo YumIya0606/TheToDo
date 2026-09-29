@@ -24,5 +24,9 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  /* Tests are type-checked by vitest, and the one that validates the ClassRadar
+     contract deliberately reads the real file from disk, which needs Node types
+     the browser bundle must not pull in. */
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

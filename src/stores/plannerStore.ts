@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { Commitment, StudyReminder } from '@/types';
+import { seedCommitments } from '@/lib/seedTimetable';
 
 /**
  * Study Planner state.
@@ -49,6 +50,11 @@ interface PlannerState {
   toggleWeak: (subject: string) => void;
   setStudyRatio: (ratio: number) => void;
   setOnboarded: (v: boolean) => void;
+
+  /** Load the student's real timetable. Only offered on an empty planner. */
+  seedTimetable: () => void;
+  /** Weeks the student is on an off-week for a fortnightly class. */
+  toggleOffThisWeek: (id: string) => void;
 }
 
 const genId = () => `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -92,12 +98,64 @@ export const usePlannerStore = create<PlannerState>()(
 
       setStudyRatio: (ratio) => set({ studyRatio: Math.min(1, Math.max(0.1, ratio)) }),
       setOnboarded: (v) => set({ onboarded: v }),
+
+      seedTimetable: () =>
+        set((s) =>
+          s.commitments.length > 0
+            ? {}
+            : { commitments: seedCommitments(genId), onboarded: true }
+        ),
+
+      toggleOffThisWeek: (id) =>
+        set((s) => ({
+          commitments: s.commitments.map((c) =>
+            c.id === id ? { ...c, offThisWeek: !c.offThisWeek } : c
+          ),
+        })),
     }),
     { name: 'thetodo-planner-storage' }
   )
 );
 
 /* ── Derived helpers (pure) ─────────────────────────────────────────────── */
+
+/** Monday-based week index, so "week 0" is stable across years for a given anchor. */
+function mondayOf(date: Date): Date {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const shift = (d.getDay() + 6) % 7; // Monday = 0
+  d.setDate(d.getDate() - shift);
+  return d;
+}
+
+/** Whole weeks between two dates, counted from a Monday boundary. */
+function weeksBetween(from: Date, to: Date): number {
+  return Math.round((mondayOf(to).getTime() - mondayOf(from).getTime()) / (7 * 24 * 3600 * 1000));
+}
+
+/**
+ * Is a commitment active on a given date?
+ *
+ * A fortnightly class is on for the week containing its anchor and every second
+ * week after. `offThisWeek` is a deliberate one-week override, because the
+ * student often knows this week is the break before the anchor is reached.
+ * Anything without a cadence is weekly, which is what all pre-existing saved
+ * data means.
+ */
+export function isCommitmentActiveOn(c: Commitment, date: Date): boolean {
+  if (c.offThisWeek && todayKey() === toDateKey(date)) return false;
+  if (c.cadence !== 'fortnightly') return true;
+  if (!c.anchorDate) return true; // no anchor yet: assume the current week is on
+  const anchor = new Date(`${c.anchorDate}T00:00:00`);
+  if (Number.isNaN(anchor.getTime())) return true;
+  const delta = weeksBetween(anchor, date);
+  return ((delta % 2) + 2) % 2 === 0;
+}
+
+export function toDateKey(date: Date): string {
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${mm}-${dd}`;
+}
 
 export function toMinutes(time: string): number {
   const [h, m] = time.split(':').map(Number);
@@ -111,13 +169,27 @@ export function commitmentDuration(c: { startTime: string; endTime: string }): n
   return dur;
 }
 
-export function dayCommitments(commitments: Commitment[], dayOfWeek: number): Commitment[] {
-  return commitments.filter((c) => c.days.includes(dayOfWeek));
+/** Commitments for a weekday, optionally filtered by whether they fall in this week. */
+export function dayCommitments(
+  commitments: Commitment[],
+  dayOfWeek: number,
+  date?: Date
+): Commitment[] {
+  return commitments.filter(
+    (c) => c.days.includes(dayOfWeek) && (!date || isCommitmentActiveOn(c, date))
+  );
 }
 
 /** Free minutes in a day = 1440 − everything occupied that day. */
-export function freeMinutesForDay(commitments: Commitment[], dayOfWeek: number): number {
-  const used = dayCommitments(commitments, dayOfWeek).reduce((sum, c) => sum + commitmentDuration(c), 0);
+export function freeMinutesForDay(
+  commitments: Commitment[],
+  dayOfWeek: number,
+  date?: Date
+): number {
+  const used = dayCommitments(commitments, dayOfWeek, date).reduce(
+    (sum, c) => sum + commitmentDuration(c),
+    0
+  );
   return Math.max(0, 24 * 60 - used);
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Sigma, Atom, FlaskConical, BookMarked, CalendarClock, Plus, Trash2, Zap,
@@ -20,6 +20,7 @@ import {
   todayKey,
 } from '@/stores/plannerStore';
 import { useFocusStore } from '@/stores/focusStore';
+import { SEED_TIMETABLE } from '@/lib/seedTimetable';
 import { cn } from '@/lib/utils';
 
 const SUBJECT_ICON: Record<string, LucideIcon> = {
@@ -45,11 +46,28 @@ export function PlannerView() {
     addCommitment, updateCommitment, removeCommitment,
     addReminder, removeReminder,
     toggleSubject, toggleWeak, setStudyRatio, setOnboarded,
+    seedTimetable, toggleOffThisWeek,
   } = usePlannerStore();
 
   const { studyAnalytics, selectedSubject, currentSessionSeconds, setSubject, toggleFocusMode } = useFocusStore();
 
+  // The selected weekday, and a concrete date for it, so a fortnightly class can
+  // be excluded on its off weeks instead of blocking time every week.
   const [day, setDay] = useState(new Date().getDay());
+  // The coming week, one Date per weekday, so each pill can show the free time
+  // for the week that day actually falls in. Computed in one pass because a
+  // hook inside a .map() would break the rules of hooks.
+  const weekDates = useMemo(() => {
+    const today = new Date();
+    const out: Date[] = [];
+    for (let d = 0; d < 7; d++) {
+      const x = new Date(today);
+      x.setDate(today.getDate() + ((d - today.getDay() + 7) % 7));
+      out.push(x);
+    }
+    return out;
+  }, []);
+  const selectedDate = weekDates[day] ?? new Date();
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Quick-add form state
@@ -63,7 +81,7 @@ export function PlannerView() {
   const [remTime, setRemTime] = useState('19:00');
 
   const tKey = todayKey();
-  const free = freeMinutesForDay(commitments, day);
+  const free = freeMinutesForDay(commitments, day, selectedDate);
   const budget = Math.round(free * studyRatio);
   const allocations = allocateSubjects(free, enabledSubjects, weakSubjects, studyRatio);
 
@@ -116,10 +134,35 @@ export function PlannerView() {
         subtitle="Log your week, own your free time — balanced across every subject."
       />
 
+      {/* An empty planner offers the real timetable rather than making the
+          student retype it. Everything it adds stays editable. */}
+      {commitments.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl border border-cyan-500/30 bg-cyan-500/[0.06] p-4 flex flex-wrap items-center gap-3"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-cyan-200">Load your tuition timetable</p>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Adds your {SEED_TIMETABLE.length} weekly classes, including the ones that only run
+              every other week. You can rename, retime or delete any of them afterwards.
+            </p>
+          </div>
+          <button
+            onClick={seedTimetable}
+            className="px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-200 text-xs font-semibold
+                       border border-cyan-500/40 hover:bg-cyan-500/30 transition-colors"
+          >
+            Load timetable
+          </button>
+        </motion.div>
+      )}
+
       {/* Day selector */}
       <div className="flex items-center gap-2 flex-wrap">
         {ALL_DAYS.map((d) => {
-          const dFree = freeMinutesForDay(commitments, d);
+          const dFree = freeMinutesForDay(commitments, d, weekDates[d]);
           const isToday = d === new Date().getDay();
           return (
             <button
@@ -283,12 +326,12 @@ export function PlannerView() {
           </div>
 
           <div className="space-y-2 mb-4">
-            {dayCommitments(commitments, day).length === 0 && (
-              <p className="text-xs text-slate-600 italic py-3 text-center">
-                Nothing scheduled on {FULL_DAY_LABELS[day]} — all 24h are free.
-              </p>
-            )}
-            {dayCommitments(commitments, day).map((c) => (
+      {dayCommitments(commitments, day, selectedDate).length === 0 && (
+        <p className="text-xs text-slate-600 italic py-3 text-center">
+          Nothing scheduled on {FULL_DAY_LABELS[day]} — all 24h are free.
+        </p>
+      )}
+      {dayCommitments(commitments, day, selectedDate).map((c) => (
               <div key={c.id} className="p-3 rounded-xl bg-white/[0.03] border border-white/10 space-y-2">
                 <div className="flex items-center gap-2">
                   <input
@@ -342,6 +385,54 @@ export function PlannerView() {
                       );
                     })}
                   </div>
+                </div>
+
+                {/* Recurrence: an alternate-week class must not block time on
+                    its off weeks, and the student often knows this week is the
+                    break before any anchor is set. */}
+                <div className="flex items-center gap-2 flex-wrap text-[10px]">
+                  <button
+                    onClick={() =>
+                      updateCommitment(c.id, {
+                        cadence: c.cadence === 'fortnightly' ? 'weekly' : 'fortnightly',
+                      })
+                    }
+                    className={cn(
+                      'px-2 py-0.5 rounded border transition-colors',
+                      c.cadence === 'fortnightly'
+                        ? 'border-violet-500/40 bg-violet-500/15 text-violet-300'
+                        : 'border-white/10 bg-white/5 text-slate-500 hover:text-slate-300'
+                    )}
+                    title="Alternate-week classes only block time on the weeks they actually run"
+                  >
+                    {c.cadence === 'fortnightly' ? 'Every 2 weeks' : 'Weekly'}
+                  </button>
+
+                  {c.cadence === 'fortnightly' && (
+                    <button
+                      onClick={() => toggleOffThisWeek(c.id)}
+                      className={cn(
+                        'px-2 py-0.5 rounded border transition-colors',
+                        c.offThisWeek
+                          ? 'border-amber-500/40 bg-amber-500/15 text-amber-300'
+                          : 'border-white/10 bg-white/5 text-slate-500 hover:text-slate-300'
+                      )}
+                      title="Mark this week as the break, and free the time up"
+                    >
+                      {c.offThisWeek ? 'Off this week' : 'Not this week'}
+                    </button>
+                  )}
+
+                  {c.subject && (
+                    <span className="px-2 py-0.5 rounded bg-white/5 text-slate-500">
+                      {c.subject}
+                    </span>
+                  )}
+                  {c.source === 'classradar' && (
+                    <span className="px-2 py-0.5 rounded bg-cyan-500/15 text-cyan-300">
+                      from ClassRadar
+                    </span>
+                  )}
                 </div>
               </div>
             ))}

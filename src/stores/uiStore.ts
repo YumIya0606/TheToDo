@@ -11,6 +11,7 @@ type CurrentView =
   | 'diary' 
   | 'silentboy'
   | 'planner'
+  | 'classes'
   | 'boosters'
   | 'settings' 
   | 'automation';

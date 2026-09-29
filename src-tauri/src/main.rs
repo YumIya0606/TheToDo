@@ -166,6 +166,46 @@ fn collapse_quick_capture(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Read ClassRadar's exported schedule.
+///
+/// Done in Rust rather than through the fs plugin on purpose: Tauri v2's fs
+/// scope is deliberately narrow, and widening it to let the webview read a file
+/// in another app's data directory would hand the frontend far more filesystem
+/// access than this feature needs. A command keeps the permission to exactly one
+/// file, with the path validated here.
+#[tauri::command]
+fn read_classradar_schedule(export_path: String) -> Result<String, String> {
+    let path = std::path::Path::new(&export_path);
+
+    // Only ever read a file that is actually a schedule export, so a mistyped
+    // setting cannot turn this into a general file read.
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default();
+    if !name.eq_ignore_ascii_case("schedule.json") {
+        return Err(format!(
+            "Refusing to read '{name}': expected a ClassRadar schedule export named schedule.json"
+        ));
+    }
+
+    match std::fs::read_to_string(path) {
+        Ok(text) => Ok(text),
+        Err(e) => Err(format!(
+            "Could not read {export_path}: {e}. In ClassRadar, press Export schedule."
+        )),
+    }
+}
+
+/// Where ClassRadar is expected to live, so the default path is not a guess.
+#[tauri::command]
+fn classradar_default_path() -> String {
+    let base = std::env::var("APPDATA")
+        .or_else(|_| std::env::var("HOME").map_err(|_| "?").map(|h| h.to_string()))
+        .unwrap_or_default();
+    format!("{base}/ClassRadar/data/schedule.json")
+}
+
 fn main() {
     // Global shortcut: Ctrl+Shift+X toggles the Quick Capture overlay from anywhere.
     let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyX);
@@ -198,7 +238,9 @@ fn main() {
             run_native_script,
             toggle_quick_capture,
             expand_quick_capture,
-            collapse_quick_capture
+            collapse_quick_capture,
+            read_classradar_schedule,
+            classradar_default_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

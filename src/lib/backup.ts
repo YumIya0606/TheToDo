@@ -6,6 +6,12 @@ export interface BackupData {
   diary: unknown;
   automation: unknown;
   settings: unknown;
+  /** The study planner: commitments, reminders, subjects. */
+  planner: unknown;
+  /** Every booster episode and the watch progress on it. */
+  boosters: unknown;
+  /** Study-time analytics from Focus Mode. */
+  focus: unknown;
 }
 
 export type SaveMethod = 'tauri' | 'browser' | 'cancelled';
@@ -18,17 +24,43 @@ const safeParse = (raw: string | null, fallback: unknown) => {
   }
 };
 
+/** Read a section out of a backup without asserting its exact shape. */
+function section(data: Partial<BackupData>, field: string): unknown {
+  return (data as unknown as Record<string, unknown>)[field];
+}
+
+/**
+ * Every persisted key, so a new store cannot be added without appearing in a
+ * backup. These five were previously missing, which meant exporting and
+ * re-importing silently lost the whole planner, all 460 booster episodes and
+ * every hour of study analytics.
+ */
+const STORAGE_KEYS = {
+  tasks: 'thetodo-task-storage',
+  notes: 'thetodo-notes',
+  diary: 'thetodo-diary-storage',
+  automation: 'thetodo-automation-jobs',
+  settings: 'thetodo-settings',
+  planner: 'thetodo-planner-storage',
+  boosters: 'thetodo-boosters-v2',
+  focus: 'thetodo-focus-storage',
+} as const;
+
 /** Aggregate all persisted Zustand/localStorage data into one backup object. */
 export function collectBackupData(): BackupData {
-  return {
-    version: '1.0',
+  const out = {
+    version: '1.1',
     exportedAt: new Date().toISOString(),
-    tasks: safeParse(localStorage.getItem('thetodo-task-storage'), []),
-    notes: safeParse(localStorage.getItem('thetodo-notes'), []),
-    diary: safeParse(localStorage.getItem('thetodo-diary-storage'), []),
-    automation: safeParse(localStorage.getItem('thetodo-automation-jobs'), []),
-    settings: safeParse(localStorage.getItem('thetodo-settings'), {}),
-  };
+  } as BackupData;
+  for (const [field, key] of Object.entries(STORAGE_KEYS)) {
+    // A key that has never been written stays absent rather than becoming null,
+    // so a restore does not overwrite it with an empty store.
+    (out as unknown as Record<string, unknown>)[field] = safeParse(
+      localStorage.getItem(key),
+      undefined
+    );
+  }
+  return out;
 }
 
 /**
@@ -41,17 +73,22 @@ export function collectBackupData(): BackupData {
  * Returns the list of storage keys actually restored.
  */
 export function restoreBackupData(data: Partial<BackupData>): string[] {
+  // stateField is the name inside the store's `state`. Empty means the whole
+  // state object is the payload.
   const keys: { field: keyof BackupData; storageKey: string; stateField: string }[] = [
-    { field: 'tasks', storageKey: 'thetodo-task-storage', stateField: 'tasks' },
-    { field: 'notes', storageKey: 'thetodo-notes', stateField: 'notes' },
-    { field: 'diary', storageKey: 'thetodo-diary-storage', stateField: 'entries' },
-    { field: 'automation', storageKey: 'thetodo-automation-jobs', stateField: 'jobs' },
-    { field: 'settings', storageKey: 'thetodo-settings', stateField: '' },
+    { field: 'tasks', storageKey: STORAGE_KEYS.tasks, stateField: 'tasks' },
+    { field: 'notes', storageKey: STORAGE_KEYS.notes, stateField: 'notes' },
+    { field: 'diary', storageKey: STORAGE_KEYS.diary, stateField: 'entries' },
+    { field: 'automation', storageKey: STORAGE_KEYS.automation, stateField: 'jobs' },
+    { field: 'settings', storageKey: STORAGE_KEYS.settings, stateField: '' },
+    { field: 'planner', storageKey: STORAGE_KEYS.planner, stateField: '' },
+    { field: 'boosters', storageKey: STORAGE_KEYS.boosters, stateField: '' },
+    { field: 'focus', storageKey: STORAGE_KEYS.focus, stateField: '' },
   ];
 
   const restored: string[] = [];
   for (const { field, storageKey, stateField } of keys) {
-    const value = data[field];
+    const value = section(data, field);
     if (value === undefined || value === null) continue;
 
     // Already a persist envelope ({ state, version }) — write it back verbatim.

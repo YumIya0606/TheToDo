@@ -16,6 +16,7 @@ import { NotesView } from './components/notes/NotesView';
 import { DiaryView } from './components/diary/DiaryView';
 import { SilentBoyView } from './components/silentboy/SilentBoyView';
 import { PlannerView } from './components/planner/PlannerView';
+import { ClassesView } from './components/classes/ClassesView';
 import { BoostersView } from './components/boosters/BoostersView';
 import { TagsView } from './components/tags/TagsView';
 import { SettingsView } from './components/settings/SettingsView';
@@ -467,6 +468,7 @@ function App() {
       case 'diary': return <DiaryView />;
       case 'silentboy': return <SilentBoyView />;
       case 'planner': return <PlannerView />;
+      case 'classes': return <ClassesView />;
       case 'boosters': return <BoostersView />;
       case 'tags': return <TagsView />;
       case 'settings': return <SettingsView />;

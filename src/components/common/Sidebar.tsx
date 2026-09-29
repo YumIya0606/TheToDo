@@ -11,7 +11,8 @@ import {
   CalendarClock,
   Zap,
   Moon,
-  Play
+  Play,
+  Radio
 } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { useFocusStore } from '@/stores/focusStore';
@@ -21,6 +22,7 @@ import { useState } from 'react';
 
 const mainNavItems = [
   { icon: CalendarClock, label: 'Planner', view: 'planner' },
+  { icon: Radio, label: 'Classes', view: 'classes' },
   { icon: Play, label: 'Boosters', view: 'boosters' },
   { icon: FileText, label: 'Notes', view: 'notes' },
   { icon: BookOpen, label: 'Diary', view: 'diary' },
