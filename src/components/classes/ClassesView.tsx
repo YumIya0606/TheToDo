@@ -11,9 +11,12 @@ import {
   Zap,
   AlertTriangle,
   CheckCircle2,
+  ListTodo,
 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { usePlannerStore } from '@/stores/plannerStore';
+import { useTaskStore } from '@/stores/taskStore';
+import { commitDrafts, draftsFromEvents, type TaskDraft } from '@/lib/classRadarTasks';
 import { useBoosterStore } from '@/stores/boosterStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { emit } from '@tauri-apps/api/event';
@@ -56,17 +59,26 @@ const STATUS_STYLE: Record<string, string> = {
 export function ClassesView() {
   const [data, setData] = useState<ScheduleExport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const [path, setPath] = useState('');
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('classes');
   const [open, setOpen] = useState<number | null>(null);
   const [added, setAdded] = useState<Record<number, boolean>>({});
+  const [drafts, setDrafts] = useState<TaskDraft[]>([]);
 
   const classRadarPath = useSettingsStore((s) => s.classRadarPath);
   const setClassRadarPath = useSettingsStore((s) => s.setClassRadarPath);
   const lastChecked = useSettingsStore((s) => s.classRadarCheckedAt);
   const commitments = usePlannerStore((s) => s.commitments);
   const addCommitment = usePlannerStore((s) => s.addCommitment);
+  // Subscribed narrowly: the task list is large and only this panel reads it.
+  const tasks = useTaskStore((s) => s.tasks);
+
+  useEffect(() => {
+    if (!data) return;
+    setDrafts(draftsFromEvents(data.events, tasks));
+  }, [data, tasks]);
 
   const refresh = async () => {
     setLoading(true);
@@ -227,9 +239,57 @@ export function ClassesView() {
             <Stat label="Understood" value={data.counts.understood} />
           </div>
 
-          {/* Tabs */}
-          <div className="flex items-center gap-1.5 border-b border-white/10">
-            {(
+          {toast && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-lg px-3 py-2 text-[12px] bg-emerald-500/10 text-emerald-200 ring-1 ring-emerald-500/25"
+          onAnimationComplete={() => setTimeout(() => setToast(null), 4000)}
+        >
+          {toast}
+        </motion.div>
+      )}
+
+      {/* Send the work into the task list, where due-soon logic, the dashboard
+          counts and reminders already live. */}
+      {drafts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-cyan-500/25 bg-cyan-500/[0.06] px-3.5 py-2.5">
+          <ListTodo className="h-4 w-4 text-cyan-400 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] text-cyan-100">
+              {drafts.length} item{drafts.length === 1 ? '' : 's'} with something to do — papers,
+              tests, recordings
+            </p>
+            <p className="text-[10.5px] text-cyan-200/60 truncate">
+              {drafts
+                .slice(0, 2)
+                .map((d) => d.title)
+                .join(' · ')}
+              {drafts.length > 2 ? ` · +${drafts.length - 2} more` : ''}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              const n = commitDrafts(drafts);
+              setToast(`Added ${n} task${n === 1 ? '' : 's'} to your To-do list.`);
+              setDrafts([]);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-200
+                       text-xs font-semibold border border-cyan-500/35 hover:bg-cyan-500/30 transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" /> Send {drafts.length} to tasks
+          </button>
+          <button
+            onClick={() => setDrafts([])}
+            className="text-[11px] text-cyan-200/60 hover:text-cyan-100 transition-colors"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Tabs */}
+          <div className="flex items-center gap-1.5 border-b border-white/10">            {(
               [
                 ['classes', `Classes (${upcoming.length})`, CalendarClock],
                 ['study-plan', `Study plan (${data.boosterPlan.length})`, Zap],

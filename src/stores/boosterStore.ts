@@ -33,6 +33,13 @@ function seedEpisodes(count: number): BoosterEpisode[] {
   }));
 }
 
+/** Exposed for tests, so a perf check can build a series the real seeds would.
+ *  never produce.
+ */
+export function seedEpisodesForTest(count: number): BoosterEpisode[] {
+  return seedEpisodes(count);
+}
+
 function renumber(episodes: BoosterEpisode[]): BoosterEpisode[] {
   return episodes.map((e, i) => ({ ...e, num: i + 1 }));
 }

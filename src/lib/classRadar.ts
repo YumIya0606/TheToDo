@@ -187,8 +187,7 @@ export function toPlannerSubject(subject: string): string {
  * Only the newest post is carried: the student works through the plan in order,
  * and a list of every past post would be noise on the boost screen.
  */
-export function toStudyPointer(plan: RadarBooster[]): StudyPointer | null {
-  const latest = [...plan].sort((a, b) => b.postedAt - a.postedAt)[0];
+export function toStudyPointer(plan: RadarBooster[]): StudyPointer | null {  const latest = [...plan].sort((a, b) => b.postedAt - a.postedAt)[0];
   if (!latest) return null;
   return {
     kind: latest.kind === 'speed' || latest.kind === 'theory' ? latest.kind : 'other',

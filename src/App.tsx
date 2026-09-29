@@ -40,19 +40,122 @@ import {
   ListTodo, BarChart3, NotebookPen
 } from 'lucide-react';
 
+/**
+ * Fires task and study reminders.
+ *
+ * Its own component on purpose. It needs the task list, and a component that
+ * needs the whole task list would make every task edit re-render the entire app
+ * — the booster grid included — if it lived in the root.
+ */
+function DueWatcher() {
+  const tasks = useTaskStore((s) => s.tasks);
+  const markTaskNotified = useTaskStore((s) => s.markTaskNotified);
+  const reminders = usePlannerStore((s) => s.reminders);
+  const markReminderFired = usePlannerStore((s) => s.markReminderFired);
+
+  useEffect(() => {
+    const checkDueTasks = () => {
+      const now = new Date();
+      const currentTime = now.toTimeString().slice(0, 5); // "HH:mm"
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const currentDate = `${year}-${month}-${day}`; // "YYYY-MM-DD"
+
+      tasks.forEach((task) => {
+        if (task.isScheduled && task.dueDate === currentDate && task.dueTime === currentTime && !task.notified) {
+          // a) In-App Toast
+          showInAppToast(`⏰ Task Reminder: ${task.title}`);
+
+          // b) Native OS Notification (best-effort)
+          try {
+            const result = sendNotification({
+              title: 'Task Due',
+              body: `${task.title} is scheduled for ${task.dueTime}`,
+              icon: "icon.png",
+              sound: "Default"
+            }) as unknown as Promise<void> | void;
+            if (result && typeof (result as Promise<void>).catch === 'function') {
+              (result as Promise<void>).catch((err) => console.error('OS notification failed:', err));
+            }
+          } catch (err) {
+            console.error('OS notification failed:', err);
+          }
+
+          // c) Mark as notified immediately so it never fires again
+          markTaskNotified(task.id);
+        }
+      });
+
+      // Study reminders from the planner — fire once per day, each at its HH:mm.
+      reminders.forEach((reminder) => {
+        if (reminder.time !== currentTime) return;
+        if (reminder.lastFiredDate === currentDate) return;
+
+        showInAppToast(`📚 Reminder: Time for ${reminder.subject}`);
+        try {
+          const result = sendNotification({
+            title: 'Study Reminder',
+            body: `${reminder.subject} — ${reminder.message || 'Time to study'}`,
+            icon: 'icon.png',
+            sound: 'Default',
+          }) as unknown as Promise<void> | void;
+          if (result && typeof (result as Promise<void>).catch === 'function') {
+            (result as Promise<void>).catch((err) => console.error('OS notification failed:', err));
+          }
+        } catch (err) {
+          console.error('OS notification failed:', err);
+        }
+        markReminderFired(reminder.id, currentDate);
+      });
+    };
+
+    const interval = setInterval(checkDueTasks, 60000); // Check every minute
+    checkDueTasks(); // Also check immediately on mount/tasks change
+
+    return () => clearInterval(interval);
+  }, [tasks, markTaskNotified, reminders, markReminderFired]);
+
+  return null;
+}
+
 function App() {
-  const { currentView, sidebarOpen, toggleSidebar, theme, setView } = useUIStore();
-  const { 
-    isActive: isSilentMode, isRunning, startTimer, pauseTimer, resetTimer, 
-    activeTaskId, tick, selectedSubject, setSubject, studyAnalytics, toggleFocusMode,
-    currentSessionSeconds, addManualTime
-  } = useFocusStore();
-  const { tasks, markTaskNotified, addTask } = useTaskStore();
-  const { addNote } = useNoteStore();
-  const { editDailyTotal } = useFocusStore();
-  const {
-    reminders, markReminderFired,
-  } = usePlannerStore();
+  // Subscribe to single values rather than whole stores.
+  //
+  // `useTaskStore()` and `useFocusStore()` with no selector return the entire
+  // store, so any change to any task or any study-analytics row re-rendered this
+  // component and everything under it — including the booster grid's 460 tiles.
+  // Every booster tap writes study analytics, so marking one episode watched was
+  // rebuilding the whole app. Narrow selectors keep a change scoped to the
+  // components that actually read the value.
+  const currentView = useUIStore((s) => s.currentView);
+  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const theme = useUIStore((s) => s.theme);
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const setView = useUIStore((s) => s.setView);
+
+  const isActive = useFocusStore((s) => s.isActive);
+  const isRunning = useFocusStore((s) => s.isRunning);
+  const activeTaskId = useFocusStore((s) => s.activeTaskId);
+  const selectedSubject = useFocusStore((s) => s.selectedSubject);
+  const currentSessionSeconds = useFocusStore((s) => s.currentSessionSeconds);
+  const startTimer = useFocusStore((s) => s.startTimer);
+  const pauseTimer = useFocusStore((s) => s.pauseTimer);
+  const resetTimer = useFocusStore((s) => s.resetTimer);
+  const setSubject = useFocusStore((s) => s.setSubject);
+  const toggleFocusMode = useFocusStore((s) => s.toggleFocusMode);
+  const addManualTime = useFocusStore((s) => s.addManualTime);
+  const editDailyTotal = useFocusStore((s) => s.editDailyTotal);
+  const studyAnalytics = useFocusStore((s) => s.studyAnalytics);
+  // The focus store's own advance function, not the elapsed seconds: naming a
+  // number `tick` and then calling it was the source of a type error, and
+  // conflating the two made the timer's dependency unclear.
+  const tick = useFocusStore((s) => s.tick);
+
+  const addTask = useTaskStore((s) => s.addTask);
+  const addNote = useNoteStore((s) => s.addNote);
+
+  const isSilentMode = isActive;
 
   // Study analytics modal
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
@@ -196,68 +299,8 @@ function App() {
   }, []);
 
   // Notification Engine
-  useEffect(() => {
-    const checkDueTasks = () => {
-      const now = new Date();
-      const currentTime = now.toTimeString().slice(0, 5); // "HH:mm"
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const currentDate = `${year}-${month}-${day}`; // "YYYY-MM-DD"
+  <DueWatcher />
 
-      tasks.forEach(task => {
-        if (task.isScheduled && task.dueDate === currentDate && task.dueTime === currentTime && !task.notified) {
-          // a) In-App Toast
-          showInAppToast(`⏰ Task Reminder: ${task.title}`);
-
-          // b) Native OS Notification (best-effort)
-          try {
-            const result = sendNotification({
-              title: 'Task Due',
-              body: `${task.title} is scheduled for ${task.dueTime}`,
-              icon: "icon.png",
-              sound: "Default"
-            }) as unknown as Promise<void> | void;
-            if (result && typeof (result as Promise<void>).catch === 'function') {
-              (result as Promise<void>).catch((err) => console.error('OS notification failed:', err));
-            }
-          } catch (err) {
-            console.error('OS notification failed:', err);
-          }
-
-          // c) Mark as notified immediately so it never fires again
-          markTaskNotified(task.id);
-        }
-      });
-
-      // Study reminders from the planner — fire once per day, each at its HH:mm.
-      reminders.forEach((reminder) => {
-        if (reminder.time !== currentTime) return;
-        if (reminder.lastFiredDate === currentDate) return;
-
-        showInAppToast(`📚 Reminder: Time for ${reminder.subject}`);
-        try {
-          const result = sendNotification({
-            title: 'Study Reminder',
-            body: `${reminder.subject} — ${reminder.message || 'Time to study'}`,
-            icon: 'icon.png',
-            sound: 'Default',
-          }) as unknown as Promise<void> | void;
-          if (result && typeof (result as Promise<void>).catch === 'function') {
-            (result as Promise<void>).catch((err) => console.error('OS notification failed:', err));
-          }
-        } catch (err) {
-          console.error('OS notification failed:', err);
-        }
-        markReminderFired(reminder.id, currentDate);
-      });
-    };
-
-    const interval = setInterval(checkDueTasks, 60000); // Check every minute
-    checkDueTasks(); // Also check immediately on mount/tasks change
-
-    return () => clearInterval(interval);
-  }, [tasks, markTaskNotified, reminders, markReminderFired]);
 
   // Focus timer ticking — drives countdown and auto-completes sessions
   useEffect(() => {
@@ -466,7 +509,7 @@ function App() {
       case 'matrix': return <MatrixView />;
       case 'notes': return <NotesView />;
       case 'diary': return <DiaryView />;
-      case 'silentboy': return <SilentBoyView />;
+      case 'silentboy': return <SilentBoyView onExit={() => setView('dashboard')} />;
       case 'planner': return <PlannerView />;
       case 'classes': return <ClassesView />;
       case 'boosters': return <BoostersView />;
