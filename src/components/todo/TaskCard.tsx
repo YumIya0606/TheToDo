@@ -1,84 +1,74 @@
-import { CheckCircle2, Circle, Calendar, Trash2, Edit2 } from 'lucide-react';
-import { Task } from '@/types';
+import { CheckSquare, Trash2 } from 'lucide-react';
 import { useTaskStore } from '@/stores/taskStore';
-import { useUIStore } from '@/stores/uiStore';
-import { Badge, Button } from '../ui/Button';
-import { cn, getPriorityColor, formatDate } from '@/lib/utils';
+import { InteractivePriorityBadge } from '@/components/tasks/InteractivePriorityBadge';
+import { cn } from '@/lib/utils';
 
 interface TaskCardProps {
-  task: Task;
+  task: any;
   compact?: boolean;
 }
 
 export function TaskCard({ task, compact = false }: TaskCardProps) {
-  const { toggleTaskStatus, deleteTask } = useTaskStore();
-  const { openTaskModal } = useUIStore();
+  const { updateTask, deleteTask } = useTaskStore();
 
-  const progress = task.totalSubtasks > 0 
-    ? Math.round((task.completedSubtasks / task.totalSubtasks) * 100) 
-    : 0;
+  const handleStatusToggle = () => {
+    const newStatus = task.status === 'completed' ? 'todo' : 'completed';
+    updateTask(task.id, { status: newStatus });
+  };
 
   return (
     <div className={cn(
-      "group relative p-4 rounded-xl border bg-slate-900/40 hover:bg-slate-800/60 transition-all duration-200",
-      task.status === 'completed' ? "border-slate-800 opacity-75" : "border-slate-700/50 hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-900/10"
+      "group p-4 rounded-xl border transition-all duration-200 hover:shadow-lg",
+      task.status === 'completed' 
+        ? "bg-slate-900/50 border-slate-800 opacity-75" 
+        : "bg-[#0f2442]/50 border-cyan-900/30 hover:border-cyan-500/50"
     )}>
       <div className="flex items-start gap-3">
-        <button 
-          onClick={() => toggleTaskStatus(task.id)}
-          className={cn("mt-1 transition-colors", task.status === 'completed' ? "text-emerald-500" : "text-slate-600 hover:text-emerald-500")}
-        >
-          {task.status === 'completed' ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
-        </button>
-
+        <InteractivePriorityBadge task={task} />
+        
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className={cn("font-semibold text-slate-200 truncate", task.status === 'completed' && "line-through text-slate-500")}>
-              {task.title}
-            </h3>
-            <Badge className={getPriorityColor(task.priority)}>{task.priority}</Badge>
-          </div>
+          <h4 className={cn(
+            "font-medium truncate transition-all",
+            task.status === 'completed' ? "text-slate-500 line-through" : "text-white"
+          )}>
+            {task.title}
+          </h4>
           
           {!compact && task.description && (
             <p className="text-sm text-slate-400 mt-1 line-clamp-2">{task.description}</p>
           )}
 
-          <div className="flex items-center gap-4 mt-3">
-            {task.dueDate && (
-              <div className={cn("flex items-center gap-1 text-xs", new Date(task.dueDate) < new Date() && task.status !== 'completed' ? "text-red-400" : "text-slate-500")}>
-                <Calendar className="h-3 w-3" />
-                {formatDate(task.dueDate)}
+          {task.subtasks && task.subtasks.length > 0 && (
+            <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+              <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-cyan-500 to-blue-600 transition-all duration-500"
+                  style={{ width: `${(task.completedSubtasks / task.totalSubtasks) * 100}%` }}
+                />
               </div>
-            )}
-            
-            {task.totalSubtasks > 0 && (
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                  <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${progress}%` }} />
-                </div>
-                <span>{task.completedSubtasks}/{task.totalSubtasks}</span>
-              </div>
-            )}
-
-            <div className="ml-auto flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openTaskModal(task.id)}>
-                <Edit2 className="h-3 w-3" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-300" onClick={() => deleteTask(task.id)}>
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
-          </div>
-          
-          {!compact && task.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-3">
-              {task.tags.map(tag => (
-                <span key={tag} className="text-[10px] uppercase tracking-wider text-slate-500 bg-slate-800/50 px-2 py-0.5 rounded-md">
-                  #{tag}
-                </span>
-              ))}
+              <span>{task.completedSubtasks}/{task.totalSubtasks}</span>
             </div>
           )}
+        </div>
+
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={handleStatusToggle}
+            className={cn(
+              "p-2 rounded-lg transition-colors",
+              task.status === 'completed'
+                ? "text-slate-500 hover:text-green-400 hover:bg-green-500/10"
+                : "text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10"
+            )}
+          >
+            <CheckSquare className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => deleteTask(task.id)}
+            className="p-2 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </div>

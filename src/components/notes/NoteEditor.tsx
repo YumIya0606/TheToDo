@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Note } from '@/types';
+import type { Note } from '@/types';
 import { useNoteStore } from '@/stores/noteStore';
 import { cn } from '@/lib/utils';
 

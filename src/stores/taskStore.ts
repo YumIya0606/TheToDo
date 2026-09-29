@@ -1,107 +1,57 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Task, Priority, TaskStatus, Subtask } from '@/types';
+import type { Task } from '@/types';
 
 interface TaskState {
   tasks: Task[];
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completedSubtasks' | 'totalSubtasks'>) => void;
-  updateTask: (id: string, updates: Partial<Task>) => void;
+  updateTask: (id: string, task: Partial<Task>) => void;
   deleteTask: (id: string) => void;
-  toggleTaskStatus: (id: string) => void;
-  addSubtask: (taskId: string, title: string) => void;
+  getTaskById: (id: string) => Task | undefined;
   toggleSubtask: (taskId: string, subtaskId: string) => void;
-  deleteSubtask: (taskId: string, subtaskId: string) => void;
-  getTasksByStatus: (status: TaskStatus) => Task[];
-  getTasksByPriority: (priority: Priority) => Task[];
+  markTaskNotified: (taskId: string) => void;
+  clearCompleted: () => void;
 }
-
-const generateId = () => Math.random().toString(36).substr(2, 9);
 
 export const useTaskStore = create<TaskState>()(
   persist(
     (set, get) => ({
       tasks: [],
-
-      addTask: (data) => set((state) => ({
-        tasks: [
-          {
-            ...data,
-            id: generateId(),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            completedSubtasks: 0,
-            totalSubtasks: 0,
-            subtasks: [],
-          },
-          ...state.tasks,
-        ],
-      })),
-
-      updateTask: (id, updates) => set((state) => ({
-        tasks: state.tasks.map((t) =>
-          t.id === id ? { ...t, ...updates, updatedAt: new Date().toISOString() } : t
-        ),
-      })),
-
-      deleteTask: (id) => set((state) => ({
-        tasks: state.tasks.filter((t) => t.id !== id),
-      })),
-
-      toggleTaskStatus: (id) => set((state) => ({
+      addTask: (task) => set((state) => {
+        const totalSubtasks = task.subtasks?.length || 0;
+        const completedSubtasks = task.subtasks?.filter(s => s.isCompleted).length || 0;
+        return {
+          tasks: [{ ...task, id: Date.now().toString(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), totalSubtasks, completedSubtasks }, ...state.tasks],
+        };
+      }),
+      updateTask: (id, updated) => set((state) => ({
         tasks: state.tasks.map((t) => {
           if (t.id !== id) return t;
-          const newStatus = t.status === 'completed' ? 'todo' : 'completed';
-          return { ...t, status: newStatus, updatedAt: new Date().toISOString() };
+          let newTotal = t.totalSubtasks;
+          let newCompleted = t.completedSubtasks;
+          if (updated.subtasks) {
+            newTotal = updated.subtasks.length;
+            newCompleted = updated.subtasks.filter(s => s.isCompleted).length;
+          }
+          return { ...t, ...updated, totalSubtasks: newTotal, completedSubtasks: newCompleted, updatedAt: new Date().toISOString() };
         }),
       })),
-
-      addSubtask: (taskId, title) => set((state) => ({
-        tasks: state.tasks.map((t) => {
-          if (t.id !== taskId) return t;
-          const newSubtask: Subtask = { id: generateId(), title, isCompleted: false };
-          const newSubtasks = [...(t.subtasks || []), newSubtask];
-          return {
-            ...t,
-            subtasks: newSubtasks,
-            totalSubtasks: newSubtasks.length,
-            completedSubtasks: newSubtasks.filter(s => s.isCompleted).length,
-            updatedAt: new Date().toISOString(),
-          };
-        }),
-      })),
-
+      deleteTask: (id) => set((state) => ({ tasks: state.tasks.filter((t) => t.id !== id) })),
+      getTaskById: (id) => get().tasks.find((t) => t.id === id),
       toggleSubtask: (taskId, subtaskId) => set((state) => ({
         tasks: state.tasks.map((t) => {
           if (t.id !== taskId || !t.subtasks) return t;
-          const newSubtasks = t.subtasks.map(s =>
-            s.id === subtaskId ? { ...s, isCompleted: !s.isCompleted } : s
-          );
-          return {
-            ...t,
-            subtasks: newSubtasks,
-            completedSubtasks: newSubtasks.filter(s => s.isCompleted).length,
-            updatedAt: new Date().toISOString(),
-          };
+          const newSubtasks = t.subtasks.map((s) => s.id === subtaskId ? { ...s, isCompleted: !s.isCompleted } : s);
+          return { ...t, subtasks: newSubtasks, completedSubtasks: newSubtasks.filter(s => s.isCompleted).length, totalSubtasks: newSubtasks.length, updatedAt: new Date().toISOString() };
         }),
       })),
-
-      deleteSubtask: (taskId, subtaskId) => set((state) => ({
-        tasks: state.tasks.map((t) => {
-          if (t.id !== taskId || !t.subtasks) return t;
-          const newSubtasks = t.subtasks.filter(s => s.id !== subtaskId);
-          return {
-            ...t,
-            subtasks: newSubtasks,
-            totalSubtasks: newSubtasks.length,
-            completedSubtasks: newSubtasks.filter(s => s.isCompleted).length,
-            updatedAt: new Date().toISOString(),
-          };
-        }),
+      markTaskNotified: (taskId) => set((state) => ({
+        tasks: state.tasks.map((t) =>
+          t.id === taskId ? { ...t, notified: true, updatedAt: new Date().toISOString() } : t
+        ),
       })),
-
-      getTasksByStatus: (status) => get().tasks.filter(t => t.status === status),
-      getTasksByPriority: (priority) => get().tasks.filter(t => t.priority === priority),
+      clearCompleted: () => set((state) => ({ tasks: state.tasks.filter((t) => t.status !== 'completed') })),
     }),
-    { name: 'thetodo-tasks-storage' }
+    { name: 'thetodo-task-storage' }
   )
 );

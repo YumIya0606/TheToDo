@@ -6,6 +6,28 @@
     "main"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    "core:event:allow-listen",
+    "core:event:allow-emit",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "core:window:allow-set-focus",
+    "core:window:allow-center",
+    "dialog:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "fs:default",
+    "fs:allow-write-text-file",
+    "fs:allow-read-text-file",
+    "notification:default",
+    "notification:allow-notify",
+    "shell:allow-spawn",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        { "name": "powershell", "cmd": "powershell", "args": true },
+        { "name": "cmd", "cmd": "cmd", "args": true }
+      ]
+    }
   ]
 }

@@ -3,10 +3,13 @@ import { persist } from 'zustand/middleware';
 
 export interface DiaryEntry {
   id: string;
+  title?: string;
   content: string;
   date: string;
   isLocked: boolean;
   passwordHash?: string; // In real app, use proper hashing
+  mood?: 'Sad' | 'Reflective' | 'Silent' | 'Deep' | 'Happy' | null;
+  fontStyle?: 'serif' | 'mono' | 'sans' | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,39 +1,446 @@
 @import "tailwindcss";
 
-:root {
-  background-color: #09090b;
-  color: #f8fafc;
+/* 
+  ========================================
+  THEME CONFIGURATION (Tailwind v4)
+  ========================================
+*/
+@theme {
+  /* --- FONT FAMILIES --- */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Lora', Georgia, 'Times New Roman', serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+
+  /* --- MIDNIGHT BLUE (Dark Mode) --- */
+  --color-background: #0a192f;
+  --color-foreground: #e2e8f0;
+  --color-card: #0f2442;
+  --color-card-muted: #060f1c;
+  --color-card-foreground: #e2e8f0;
+  
+  /* --- ARCTIC BLUE (Light Mode) --- */
+  --color-background-light: #F8FAFC;
+  --color-foreground-light: #0F172A; /* Deep Slate for high contrast */
+  --color-card-light: #FFFFFF;
+  --color-card-muted-light: #F1F5F9;
+  --color-text-primary-light: #1E293B; /* Navy */
+  --color-text-secondary-light: #475569; /* Cool Gray */
+  
+  /* --- ACCENTS --- */
+  --color-primary: #0ea5e9;
+  --color-primary-glow: #22d3ee;
+  --color-primary-dark: #1e40af;
+  --color-royal-blue: #2563EB;
+  --color-royal-blue-hover: #1D4ED8;
+  --color-secondary: #1e3a5f;
+  --color-muted: #1e3a5f;
+  --color-muted-foreground: #94a3b8;
+  
+  /* --- BORDERS & RINGS --- */
+  --color-border: #1e3a5f;
+  --color-border-light: #E2E8F0;
+  --color-input: #1e3a5f;
+  --color-ring: #0ea5e9;
+  
+  /* --- GRADIENTS --- */
+  --gradient-premium: linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%);
+  --gradient-premium-light: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  --gradient-glow: linear-gradient(135deg, #22d3ee 0%, #0ea5e9 100%);
+  
+  /* --- SHADOWS --- */
+  --shadow-glow: 0 0 20px rgba(14, 165, 233, 0.3);
+  --shadow-native: 0 4px 20px -4px rgba(37, 99, 235, 0.15);
+  
+  /* --- RADIUS --- */
+  --radius-lg: 0.75rem;
+  --radius-md: calc(var(--radius-lg) - 2px);
+  --radius-sm: calc(var(--radius-lg) - 4px);
 }
 
-body {
-  margin: 0;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* 
+  ========================================
+  BASE STYLES & RESET
+  ========================================
+*/
+@layer base {
+  * {
+    @apply border-border;
+    box-sizing: border-box;
+  }
+
+  html {
+    overflow: hidden;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    font-family: var(--font-sans);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.5s ease, color 0.5s ease;
+  }
+
+  /* LIGHT MODE OVERRIDES */
+  body.light-mode {
+    @apply bg-background-light text-text-primary-light;
+  }
+  
+  body.light-mode .card-surface {
+    @apply bg-card-light border-border-light shadow-native;
+    color: var(--color-text-primary-light);
+  }
+  
+  body.light-mode .input-recessed {
+    @apply bg-card-muted-light border-border-light text-text-primary-light placeholder-gray-400;
+  }
+  
+  body.light-mode .btn-premium {
+    @apply bg-gradient-to-r from-royal-blue to-royal-blue-hover text-white;
+  }
+  
+  body.light-mode h1, 
+  body.light-mode h2, 
+  body.light-mode h3, 
+  body.light-mode p:not(.text-muted-foreground) {
+    @apply text-text-primary-light;
+  }
+  
+  body.light-mode .text-secondary {
+    @apply text-text-secondary-light;
+  }
+
+  ::selection {
+    background-color: rgba(14, 165, 233, 0.3);
+    color: #fff;
+  }
+}
+
+/* 
+  ========================================
+  CUSTOM SCROLLBARS (Ultra-Thin)
+  ========================================
+*/
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #1e3a5f; /* Cobalt */
+    border-radius: 3px;
+    transition: background 0.3s ease;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #0ea5e9; /* Electric Cyan on Hover */
+    box-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #1e3a5f transparent;
+  }
+  
+  /* Specific Scrollbars for Modals */
+  .modal-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .modal-scrollbar::-webkit-scrollbar-thumb {
+    background: #1e40af;
+    border-radius: 3px;
+  }
+  .modal-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #00ffff;
+  }
+}
+
+/* 
+  ========================================
+  GLASSMORPHISM & SURFACES
+  ========================================
+*/
+.glass-panel {
+  background: rgba(15, 36, 66, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(34, 211, 238, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.glass-modal {
+  background: #0a192f;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(34, 211, 238, 0.2);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(34, 211, 238, 0.1);
+}
+
+.input-recessed {
+  background: #060f1c;
+  border: 1px solid rgba(30, 58, 95, 0.5);
+  color: white;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.input-recessed:focus {
+  background: #0a192f;
+  border-color: #22d3ee;
+  box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
+  outline: none;
+}
+
+.btn-premium {
+  background: linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%);
+  position: relative;
   overflow: hidden;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
+  color: white;
+  font-weight: 600;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #0f172a; 
-}
-::-webkit-scrollbar-thumb {
-  background: #334155; 
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #475569; 
+.btn-premium::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: 0.5s;
 }
 
-/* Animations */
+.btn-premium:hover::before {
+  left: 100%;
+}
+
+.btn-premium:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.5);
+}
+
+/* 
+  ========================================
+  FOCUS MODE (SILENT BOY)
+  ========================================
+*/
+.focus-mode-active {
+  background-color: #000000 !important;
+}
+
+.focus-mode-active .sidebar-container {
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.focus-mode-active .main-content {
+  margin-left: 0 !important;
+}
+
+/* 
+  ========================================
+  ANIMATIONS
+  ========================================
+*/
 @keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes zoomIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
 .animate-in {
-  animation: fadeIn 0.4s ease-out forwards;
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.modal-enter {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+             zoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Academic Tag Colors */
+.tag-combined-maths { @apply text-blue-400 bg-blue-500/10 border-blue-500/20; }
+.tag-physics { @apply text-red-400 bg-red-500/10 border-red-500/20; }
+.tag-chemistry { @apply text-green-400 bg-green-500/10 border-green-500/20; }
+.tag-english { @apply text-yellow-400 bg-yellow-500/10 border-yellow-500/20; }
+.tag-python { @apply text-purple-400 bg-purple-500/10 border-purple-500/20; }
+
+/*
+  ========================================
+  AURORA BACKGROUND (deep-ocean ambient depth)
+  ========================================
+*/
+@keyframes aurora-float-1 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(6vw, -4vh, 0) scale(1.12); }
+  66% { transform: translate3d(-5vw, 5vh, 0) scale(0.94); }
+}
+@keyframes aurora-float-2 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
+  40% { transform: translate3d(-7vw, 4vh, 0) scale(0.9); }
+  75% { transform: translate3d(4vw, -6vh, 0) scale(1.15); }
+}
+@keyframes aurora-float-3 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(0.95); }
+  50% { transform: translate3d(5vw, 6vh, 0) scale(1.1); }
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: 0.5;
+  will-change: transform;
+}
+.aurora-1 {
+  width: 42vw; height: 42vw;
+  left: -8vw; top: -12vh;
+  background: radial-gradient(circle at 30% 30%, rgba(14, 165, 233, 0.55), transparent 70%);
+  animation: aurora-float-1 26s ease-in-out infinite;
+}
+.aurora-2 {
+  width: 38vw; height: 38vw;
+  right: -10vw; top: 10vh;
+  background: radial-gradient(circle at 60% 40%, rgba(37, 99, 235, 0.5), transparent 70%);
+  animation: aurora-float-2 32s ease-in-out infinite;
+}
+.aurora-3 {
+  width: 34vw; height: 34vw;
+  left: 30vw; bottom: -14vh;
+  background: radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.35), transparent 70%);
+  animation: aurora-float-3 38s ease-in-out infinite;
+}
+
+/* In light mode, soften the aurora so it never washes out content */
+body.light-mode .aurora-blob {
+  opacity: 0.22;
+  filter: blur(110px);
+}
+
+/*
+  ========================================
+  QUICK CAPTURE OVERLAY WINDOW
+  ========================================
+  The overlay window is frameless + transparent; the body must be transparent
+  so only the inner glass card is visible.
+*/
+body.capture-window {
+  background: transparent !important;
+  overflow: hidden;
+}
+
+/*
+  ========================================
+  3D CARD SYSTEM (lift + glow + sheen)
+  ========================================
+*/
+.card-3d {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.35s ease;
+  will-change: transform;
+}
+.card-3d::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.45), transparent 55%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+  pointer-events: none;
+}
+.card-3d:hover {
+  transform: translateY(-4px) perspective(900px) rotateX(1.5deg);
+  box-shadow: 0 18px 40px -18px rgba(6, 182, 212, 0.45),
+              0 0 0 1px rgba(34, 211, 238, 0.15);
+}
+.card-3d:hover::before {
+  opacity: 1;
+}
+
+/* Press-down feedback for buttons */
+.btn-press {
+  transition: transform 0.12s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease;
+}
+.btn-press:active {
+  transform: scale(0.94);
+  filter: brightness(1.15);
+}
+
+/*
+  ========================================
+  FOCUS MODE — ARC TAB BUTTONS
+  ========================================
+  Each button hugs the circle's right edge; its left corner is clipped to
+  follow the curve. drop-shadow (unlike box-shadow) respects clip-path, so the
+  glow traces the cut shape. Transform origin is the left edge so the button
+  grows *toward* the circle and stays tangent on hover.
+*/
+.arc-tab {
+  transform-origin: left center;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.45));
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), filter 0.28s ease;
+}
+.arc-tab:hover {
+  transform: scale(1.06);
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 14px rgba(34, 211, 238, 0.5));
+}
+
+/* Icon micro-interaction (used with `group` on the parent) */
+.group:hover .icon-pop {
+  transform: scale(1.18) rotate(-6deg);
+}
+.icon-pop {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/*
+  ========================================
+  GLOBAL FOCUS RING (accessibility + polish)
+  ========================================
+*/
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.7), 0 0 14px -2px rgba(34, 211, 238, 0.6);
+  border-radius: 8px;
+}
+
+/*
+  ========================================
+  TEXT GRADIENT HELPER
+  ========================================
+*/
+.text-gradient {
+  background: linear-gradient(135deg, #22d3ee 0%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }

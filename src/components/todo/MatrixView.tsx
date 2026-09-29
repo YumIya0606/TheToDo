@@ -1,48 +1,69 @@
+import { AlertCircle, Clock, CheckCircle2, Zap } from 'lucide-react';
 import { useTaskStore } from '@/stores/taskStore';
+import { PageHeader } from '../common/PageHeader';
 import { TaskCard } from './TaskCard';
-import { Priority } from '@/types';
+import type { Priority } from '@/types';
 
-const quadrants: { id: string; label: string; sub: string; priorities: Priority[]; urgent: boolean }[] = [
-  { id: 'q1', label: 'Do First', sub: 'Urgent & Important', priorities: ['urgent', 'high'], urgent: true },
-  { id: 'q2', label: 'Schedule', sub: 'Not Urgent & Important', priorities: ['medium', 'high'], urgent: false },
-  { id: 'q3', label: 'Delegate', sub: 'Urgent & Not Important', priorities: ['urgent', 'low'], urgent: true },
-  { id: 'q4', label: 'Eliminate', sub: 'Not Urgent & Not Important', priorities: ['low', 'medium'], urgent: false },
+const quadrants = [
+  { id: 'urgent-important', label: 'Do First', sub: 'Urgent & Important', priorities: ['urgent', 'high'] as Priority[], urgent: true },
+  { id: 'not-urgent-important', label: 'Schedule', sub: 'Not Urgent & Important', priorities: ['medium'] as Priority[], urgent: false },
+  { id: 'urgent-not-important', label: 'Delegate', sub: 'Urgent & Not Important', priorities: ['urgent', 'high'] as Priority[], urgent: true },
+  { id: 'not-urgent-not-important', label: 'Eliminate', sub: 'Not Urgent & Not Important', priorities: ['low'] as Priority[], urgent: false },
 ];
-// Simplified logic for demo: Real Eisenhower matrix requires specific logic mapping. 
-// Here we just group by priority for visual demonstration of the grid.
 
 export function MatrixView() {
   const { tasks } = useTaskStore();
-  
-  // Simple grouping for the 4 quadrants based on priority for this demo
-  const getQuadrantTasks = (type: number) => {
-    if (type === 0) return tasks.filter(t => (t.priority === 'urgent' || t.priority === 'high') && t.status !== 'completed');
-    if (type === 1) return tasks.filter(t => (t.priority === 'medium' || t.priority === 'high') && t.status === 'todo');
-    if (type === 2) return tasks.filter(t => (t.priority === 'urgent' || t.priority === 'low') && t.status === 'in_progress');
-    return tasks.filter(t => t.priority === 'low' && t.status !== 'completed');
+
+  const getIcon = (q: any) => {
+    if (q.urgent && q.priorities.includes('urgent')) return <Zap className="h-5 w-5 text-red-400" />;
+    if (!q.urgent && q.priorities.includes('medium')) return <Clock className="h-5 w-5 text-blue-400" />;
+    if (q.urgent && !q.priorities.includes('urgent')) return <AlertCircle className="h-5 w-5 text-yellow-400" />;
+    return <CheckCircle2 className="h-5 w-5 text-green-400" />;
   };
 
-  const layout = [
-    { title: 'Urgent & Important', desc: 'Do these now', tasks: getQuadrantTasks(0), color: 'border-red-500/30 bg-red-500/5' },
-    { title: 'Not Urgent & Important', desc: 'Schedule these', tasks: getQuadrantTasks(1), color: 'border-blue-500/30 bg-blue-500/5' },
-    { title: 'Urgent & Not Important', desc: 'Delegate if possible', tasks: getQuadrantTasks(2), color: 'border-orange-500/30 bg-orange-500/5' },
-    { title: 'Not Urgent & Not Important', desc: 'Eliminate', tasks: getQuadrantTasks(3), color: 'border-slate-500/30 bg-slate-500/5' },
-  ];
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full animate-in fade-in duration-500">
-      {layout.map((q, i) => (
-        <div key={i} className={`p-6 rounded-2xl border ${q.color} flex flex-col h-[400px]`}>
-          <div className="mb-4">
-            <h3 className="text-lg font-bold text-white">{q.title}</h3>
-            <p className="text-sm text-slate-400">{q.desc}</p>
-          </div>
-          <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
-            {q.tasks.map(task => <TaskCard key={task.id} task={task} compact />)}
-            {q.tasks.length === 0 && <div className="text-sm text-slate-500 italic">No tasks in this quadrant</div>}
-          </div>
-        </div>
-      ))}
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <PageHeader 
+        title="Eisenhower Matrix" 
+        subtitle="Prioritize your academic tasks" 
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {quadrants.map((q) => {
+          const quadrantTasks = tasks.filter(t => 
+            q.priorities.includes(t.priority) && 
+            t.status !== 'completed' && 
+            t.status !== 'archived'
+          );
+
+          return (
+            <div key={q.id} className="bg-[#0f2442]/40 border border-cyan-900/30 rounded-xl p-6 flex flex-col h-[400px]">
+              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-cyan-900/20">
+                {getIcon(q)}
+                <div>
+                  <h3 className="font-bold text-slate-200">{q.label}</h3>
+                  <p className="text-xs text-slate-500">{q.sub}</p>
+                </div>
+                <span className="ml-auto text-xs font-mono text-slate-500 bg-slate-900 px-2 py-1 rounded">
+                  {quadrantTasks.length}
+                </span>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
+                {quadrantTasks.length > 0 ? (
+                  quadrantTasks.map(task => (
+                    <TaskCard key={task.id} task={task} compact />
+                  ))
+                ) : (
+                  <div className="h-full flex items-center justify-center text-slate-600 text-sm italic">
+                    No tasks in this quadrant
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

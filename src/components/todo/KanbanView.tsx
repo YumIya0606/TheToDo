@@ -1,38 +1,42 @@
 import { useTaskStore } from '@/stores/taskStore';
 import { TaskCard } from './TaskCard';
-import { TaskStatus } from '@/types';
+import { PageHeader } from '../common/PageHeader';
 
-const columns: { id: TaskStatus; label: string }[] = [
-  { id: 'todo', label: 'To Do' },
-  { id: 'in_progress', label: 'In Progress' },
-  { id: 'completed', label: 'Completed' },
+const columns = [
+  { id: 'todo', title: 'To Do', color: 'border-slate-500' },
+  { id: 'in_progress', title: 'In Progress', color: 'border-cyan-500' },
+  { id: 'completed', title: 'Completed', color: 'border-green-500' },
 ];
 
 export function KanbanView() {
-  const { getTasksByStatus } = useTaskStore();
+  const { tasks } = useTaskStore();
 
   return (
-    <div className="h-full overflow-x-auto pb-4 animate-in fade-in duration-500">
-      <div className="flex gap-6 min-w-[1000px]">
-        {columns.map(col => {
-          const tasks = getTasksByStatus(col.id);
-          return (
-            <div key={col.id} className="flex-1 min-w-[300px]">
-              <div className="flex items-center justify-between mb-4 px-2">
-                <h3 className="font-semibold text-slate-200">{col.label}</h3>
-                <span className="text-xs font-mono text-slate-500 bg-slate-800 px-2 py-1 rounded">{tasks.length}</span>
+    <div className="h-full flex flex-col space-y-6 animate-in fade-in duration-500">
+      <PageHeader 
+        title="Kanban Board" 
+        subtitle="Track task progression" 
+      />
+
+      <div className="flex-1 overflow-x-auto">
+        <div className="flex gap-6 h-full min-w-[1000px]">
+          {columns.map(col => {
+            const colTasks = tasks.filter(t => t.status === col.id);
+            return (
+              <div key={col.id} className="flex-1 flex flex-col bg-[#0f2442]/30 rounded-xl border border-slate-800/50">
+                <div className={`p-4 border-b border-slate-800/50 border-t-4 ${col.color} rounded-t-xl`}>
+                  <h3 className="font-semibold text-white">{col.title}</h3>
+                  <span className="text-xs text-slate-500">{colTasks.length} tasks</span>
+                </div>
+                <div className="p-4 flex-1 overflow-y-auto space-y-3 custom-scrollbar">
+                  {colTasks.map(task => (
+                    <TaskCard key={task.id} task={task} compact />
+                  ))}
+                </div>
               </div>
-              <div className="space-y-3">
-                {tasks.map(task => <TaskCard key={task.id} task={task} compact />)}
-                {tasks.length === 0 && (
-                  <div className="h-32 border-2 border-dashed border-slate-800 rounded-xl flex items-center justify-center text-slate-600 text-sm">
-                    Empty
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

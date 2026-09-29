@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { Note } from '@/types';
+import type { Note } from '@/types';
 
 interface NoteState {
   notes: Note[];

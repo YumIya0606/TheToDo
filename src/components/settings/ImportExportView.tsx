@@ -5,59 +5,71 @@ import { useNoteStore } from '@/stores/noteStore';
 import { useDiaryStore } from '@/stores/diaryStore';
 import { Card, Button } from '../ui/Button';
 import { cn } from '@/lib/utils';
+import { collectBackupData, saveBackupToDisk, restoreBackupData } from '@/lib/backup';
 
 export function ImportExportView() {
   const { tasks } = useTaskStore();
   const { notes } = useNoteStore();
   const { entries } = useDiaryStore();
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null, message: string }>({ type: null, message: '' });
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleExport = () => {
-    const data = {
-      tasks,
-      notes,
-      diaryEntries: entries,
-      exportDate: new Date().toISOString(),
-      version: '1.0.0'
-    };
+  const handleExport = async () => {
+    setIsProcessing(true);
+    try {
+      const backupData = collectBackupData();
+      const jsonString = JSON.stringify(backupData, null, 2);
+      const method = await saveBackupToDisk(jsonString);
 
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `thetodo-backup-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      if (method === 'cancelled') {
+        setStatus({ type: null, message: '' });
+        return;
+      }
 
-    setStatus({ type: 'success', message: 'Data exported successfully!' });
-    setTimeout(() => setStatus({ type: null, message: '' }), 3000);
+      setStatus({
+        type: 'success',
+        message: method === 'tauri'
+          ? 'Backup file saved!'
+          : 'Backup file downloaded! Check your Downloads folder.',
+      });
+    } catch (error) {
+      setStatus({ type: 'error', message: 'Failed to export: ' + (error as Error).message });
+    } finally {
+      setIsProcessing(false);
+      setTimeout(() => setStatus({ type: null, message: '' }), 3000);
+    }
   };
 
-  const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target?.result as string);
-        // Here you would typically call store actions to import data
-        // For now, we just show success
-        if (data.tasks && data.notes) {
-          setStatus({ type: 'success', message: 'Data imported successfully! (Mock implementation)' });
-        } else {
-          throw new Error('Invalid file format');
+    setIsProcessing(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target?.result as string);
+          if (data && (data.tasks || data.notes || data.diary || data.automation || data.settings)) {
+            restoreBackupData(data);
+            setStatus({ type: 'success', message: 'Data imported successfully! Refreshing...' });
+            setTimeout(() => window.location.reload(), 1500);
+          } else {
+            throw new Error('Invalid file format');
+          }
+        } catch (err) {
+          setStatus({ type: 'error', message: 'Failed to import: Invalid file format' });
+        } finally {
+          setIsProcessing(false);
+          setTimeout(() => setStatus({ type: null, message: '' }), 3000);
+          event.target.value = '';
         }
-      } catch (err) {
-        setStatus({ type: 'error', message: 'Failed to import: Invalid file format' });
-      }
-      setTimeout(() => setStatus({ type: null, message: '' }), 3000);
-    };
-    reader.readAsText(file);
-    // Reset input
-    event.target.value = '';
+      };
+      reader.readAsText(file);
+    } catch (error) {
+      setIsProcessing(false);
+      setStatus({ type: 'error', message: 'Error reading file' });
+    }
   };
 
   return (
@@ -81,11 +93,15 @@ export function ImportExportView() {
         <FileJson className="h-16 w-16 mx-auto text-slate-600 mb-4" />
         <h3 className="text-xl font-semibold text-white mb-2">Export All Data</h3>
         <p className="text-slate-400 mb-6 max-w-md mx-auto">
-          Download a complete backup of your tasks, notes, and diary entries in JSON format.
+          Download a complete backup of your tasks, notes, and diary entries.
         </p>
-        <Button onClick={handleExport} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+        <Button 
+          onClick={handleExport} 
+          className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+          disabled={isProcessing}
+        >
           <Download className="h-4 w-4" />
-          Export Backup
+          {isProcessing ? 'Preparing...' : 'Download Backup'}
         </Button>
       </Card>
 
@@ -93,11 +109,17 @@ export function ImportExportView() {
         <Upload className="h-16 w-16 mx-auto text-slate-600 mb-4" />
         <h3 className="text-xl font-semibold text-white mb-2">Import Data</h3>
         <p className="text-slate-400 mb-6 max-w-md mx-auto">
-          Restore your data from a previous backup file. This will merge with existing data.
+          Restore your data from a previous backup file.
         </p>
         <label className="inline-block">
-          <input type="file" accept=".json" onChange={handleImport} className="hidden" />
-          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium cursor-pointer transition-colors">
+          <input 
+            type="file" 
+            accept=".json" 
+            onChange={handleImport} 
+            className="hidden" 
+            disabled={isProcessing}
+          />
+          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium cursor-pointer transition-colors disabled:opacity-50">
             <Upload className="h-4 w-4" />
             Select File
           </span>
@@ -105,7 +127,7 @@ export function ImportExportView() {
       </Card>
 
       <div className="p-6 rounded-lg bg-slate-900/50 border border-slate-800">
-        <h4 className="font-medium text-white mb-2">Statistics</h4>
+        <h4 className="font-medium text-white mb-2">Current Statistics</h4>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <div className="text-2xl font-bold text-emerald-400">{tasks.length}</div>

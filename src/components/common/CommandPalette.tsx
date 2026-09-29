@@ -1,13 +1,10 @@
-import { useEffect, useState } from 'react';
-import { Command, Search, X, Plus, FileText, CheckSquare } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, X, Plus, FileText, CalendarClock, Target } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
-import { Input } from '../ui/Button';
-import { cn } from '@/lib/utils';
 
 export function CommandPalette() {
-  const { isTaskModalOpen, openTaskModal, closeTaskModal } = useUIStore(); // Simplified for demo
   const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState('');
+  const { openTaskModal, openNoteModal, openDiaryModal, setView } = useUIStore();
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -23,32 +20,37 @@ export function CommandPalette() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-start justify-center pt-[15vh] p-4" onClick={() => setIsOpen(false)}>
-      <div className="w-full max-w-xl bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center border-b border-slate-800 p-4">
+    <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-start justify-center pt-[20vh] p-4">
+      <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex items-center border-b border-slate-800 px-4">
           <Search className="h-5 w-5 text-slate-400 mr-3" />
-          <Input
+          <input
             autoFocus
             placeholder="Type a command or search..."
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="border-0 focus:ring-0 bg-transparent p-0 text-base"
+            className="w-full bg-transparent py-4 text-sm text-slate-100 focus:outline-none"
           />
-          <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-slate-300">
+          <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-white">
             <X className="h-4 w-4" />
           </button>
         </div>
         <div className="p-2">
-          <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase">Actions</div>
-          <button onClick={() => { setIsOpen(false); openTaskModal(); }} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
-            <Plus className="h-4 w-4 text-emerald-500" /> Create New Task
+          <p className="px-3 py-1 text-[10px] uppercase tracking-widest text-slate-600">Create</p>
+          <button onClick={() => { openTaskModal(); setIsOpen(false); }} className="btn-press w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 text-sm">
+            <Plus className="icon-pop h-4 w-4 text-emerald-400" /> Create Task
           </button>
-          <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 transition-colors">
-            <FileText className="h-4 w-4 text-blue-500" /> Create Note (Coming Soon)
+          <button onClick={() => { openNoteModal(); setIsOpen(false); }} className="btn-press w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 text-sm">
+            <FileText className="icon-pop h-4 w-4 text-indigo-400" /> Create Note
           </button>
-        </div>
-        <div className="bg-slate-950/50 p-2 text-xs text-slate-500 text-center border-t border-slate-800">
-          Press <kbd className="font-mono bg-slate-800 px-1 rounded">Esc</kbd> to close
+          <button onClick={() => { openDiaryModal(); setIsOpen(false); }} className="btn-press w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 text-sm">
+            <FileText className="icon-pop h-4 w-4 text-purple-400" /> Write Diary
+          </button>
+          <p className="px-3 py-1 pt-3 text-[10px] uppercase tracking-widest text-slate-600">Navigate</p>
+          <button onClick={() => { setView('planner'); setIsOpen(false); }} className="btn-press w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 text-sm">
+            <CalendarClock className="icon-pop h-4 w-4 text-cyan-400" /> Study Planner
+          </button>
+          <button onClick={() => { setView('dashboard'); setIsOpen(false); }} className="btn-press w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-800 text-slate-300 text-sm">
+            <Target className="icon-pop h-4 w-4 text-amber-400" /> Tasks Dashboard
+          </button>
         </div>
       </div>
     </div>

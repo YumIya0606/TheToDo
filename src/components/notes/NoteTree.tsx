@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Folder, FileText, Plus, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
-import { Note } from '@/types';
+import type { Note } from '@/types';
 import { useNoteStore } from '@/stores/noteStore';
 import { cn } from '@/lib/utils';
 

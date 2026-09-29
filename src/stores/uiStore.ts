@@ -1,13 +1,19 @@
 import { create } from 'zustand';
-import { ViewMode } from '@/types';
 
+// Define the view types explicitly to avoid import conflicts and ensure all views are covered
 type CurrentView = 
-  | ViewMode 
+  | 'dashboard' 
+  | 'list' 
+  | 'kanban' 
+  | 'matrix' 
   | 'notes' 
   | 'tags' 
-  | 'settings' 
   | 'diary' 
-  | 'import-export';
+  | 'silentboy'
+  | 'planner'
+  | 'boosters'
+  | 'settings' 
+  | 'automation';
 
 interface UIState {
   sidebarOpen: boolean;
@@ -20,11 +26,14 @@ interface UIState {
   isNewItemDropdownOpen: boolean;
   isNotificationModalOpen: boolean;
   isDiaryModalOpen: boolean;
+  isAutomationModalOpen: boolean; // New state for Unified Automation Modal
+  isUniversalModalOpen: boolean;  // Universal Create modal
   
   // Editing State
   editingTaskId: string | null;
   editingNoteId: string | null;
   editingDiaryId: string | null;
+  editingAutomationId: string | null; // New state for editing automation jobs
   
   // Theme
   theme: 'dark' | 'light';
@@ -45,7 +54,7 @@ interface UIState {
   // Dropdown Actions
   openNewItemDropdown: () => void;
   closeNewItemDropdown: () => void;
-  toggleNewItemDropdown: () => void; // This was missing or mismatched
+  toggleNewItemDropdown: () => void;
   
   // Notification Actions
   openNotificationModal: () => void;
@@ -54,6 +63,14 @@ interface UIState {
   // Diary Actions
   openDiaryModal: (diaryId?: string | null) => void;
   closeDiaryModal: () => void;
+  
+  // Automation Actions
+  openAutomationModal: (jobId?: string | null) => void;
+  closeAutomationModal: () => void;
+
+  // Universal Create Modal Actions
+  openUniversalModal: () => void;
+  closeUniversalModal: () => void;
   
   // Theme Actions
   toggleTheme: () => void;
@@ -64,24 +81,32 @@ export const useUIStore = create<UIState>((set) => ({
   focusMode: false,
   currentView: 'dashboard',
   
-  // Modals Initial State
   isTaskModalOpen: false,
   isNoteModalOpen: false,
   isNewItemDropdownOpen: false,
   isNotificationModalOpen: false,
   isDiaryModalOpen: false,
+  isAutomationModalOpen: false,
+  isUniversalModalOpen: false,
   
-  // Editing Initial State
   editingTaskId: null,
   editingNoteId: null,
   editingDiaryId: null,
+  editingAutomationId: null,
   
-  // Theme Initial State
   theme: 'dark',
 
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   toggleFocusMode: () => set((state) => ({ focusMode: !state.focusMode })),
-  setView: (view) => set({ currentView: view, isNewItemDropdownOpen: false }),
+  setView: (view) => set({ 
+    currentView: view, 
+    isNewItemDropdownOpen: false,
+    // Close modals when switching views to prevent state leaks
+    isTaskModalOpen: false,
+    isNoteModalOpen: false,
+    isDiaryModalOpen: false,
+    isAutomationModalOpen: false
+  }),
   
   openTaskModal: (taskId = null) => set({ 
     isTaskModalOpen: true, 
@@ -99,8 +124,6 @@ export const useUIStore = create<UIState>((set) => ({
   
   openNewItemDropdown: () => set({ isNewItemDropdownOpen: true }),
   closeNewItemDropdown: () => set({ isNewItemDropdownOpen: false }),
-  
-  // This is the critical function causing your error
   toggleNewItemDropdown: () => set((state) => ({ isNewItemDropdownOpen: !state.isNewItemDropdownOpen })),
   
   openNotificationModal: () => set({ isNotificationModalOpen: true }),
@@ -112,6 +135,16 @@ export const useUIStore = create<UIState>((set) => ({
     isNewItemDropdownOpen: false
   }),
   closeDiaryModal: () => set({ isDiaryModalOpen: false, editingDiaryId: null }),
+
+  openAutomationModal: (jobId = null) => set({
+    isAutomationModalOpen: true,
+    editingAutomationId: jobId,
+    isNewItemDropdownOpen: false
+  }),
+  closeAutomationModal: () => set({ isAutomationModalOpen: false, editingAutomationId: null }),
+
+  openUniversalModal: () => set({ isUniversalModalOpen: true, isNewItemDropdownOpen: false }),
+  closeUniversalModal: () => set({ isUniversalModalOpen: false }),
   
   toggleTheme: () => set((state) => ({ theme: state.theme === 'dark' ? 'light' : 'dark' })),
 }));

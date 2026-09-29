@@ -1,10 +1,7 @@
 import { X, Bell, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { Button } from '../ui/Button';
-import { cn } from '@/lib/utils';
-import { useState } from 'react';
 
-// Mock notifications
 const MOCK_NOTIFICATIONS = [
   { id: '1', type: 'info', title: 'Welcome Back', message: 'You have 3 tasks due today.', time: '2m ago' },
   { id: '2', type: 'success', title: 'Task Completed', message: 'Great job finishing "Project Report"', time: '1h ago' },
@@ -13,7 +10,6 @@ const MOCK_NOTIFICATIONS = [
 
 export function NotificationModal() {
   const { isNotificationModalOpen, closeNotificationModal } = useUIStore();
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
 
   if (!isNotificationModalOpen) return null;
 
@@ -39,23 +35,16 @@ export function NotificationModal() {
         </div>
 
         <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-          {notifications.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
-              <Bell className="h-12 w-12 mx-auto mb-3 opacity-20" />
-              <p>No new notifications</p>
-            </div>
-          ) : (
-            notifications.map((notif) => (
-              <div key={notif.id} className="flex gap-3 p-4 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
-                <div className="flex-shrink-0 mt-1">{getIcon(notif.type)}</div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-medium text-white">{notif.title}</h4>
-                  <p className="text-xs text-slate-400 mt-1">{notif.message}</p>
-                  <span className="text-[10px] text-slate-600 mt-2 block">{notif.time}</span>
-                </div>
+          {MOCK_NOTIFICATIONS.map((notif) => (
+            <div key={notif.id} className="flex gap-3 p-4 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+              <div className="flex-shrink-0 mt-1">{getIcon(notif.type)}</div>
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-white">{notif.title}</h4>
+                <p className="text-xs text-slate-400 mt-1">{notif.message}</p>
+                <span className="text-[10px] text-slate-600 mt-2 block">{notif.time}</span>
               </div>
-            ))
-          )}
+            </div>
+          ))}
         </div>
 
         <div className="p-4 border-t border-slate-800 text-center">
