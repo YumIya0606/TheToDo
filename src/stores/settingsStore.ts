@@ -10,7 +10,8 @@ interface SettingsState {
   classRadarCheckedAt: number | null;
   toggleAutoBackup: () => void;
   setAutoBackupPath: (path: string) => void;
-  setClassRadarPath: (path: string) => void;
+  /** Where ClassRadar writes its schedule export; null means the default location. */
+  setClassRadarPath: (path: string | null) => void;
   markClassRadarChecked: () => void;
 }
 
@@ -24,8 +25,7 @@ export const useSettingsStore = create<SettingsState>()(
       toggleAutoBackup: () => set((state) => ({ isAutoBackupEnabled: !state.isAutoBackupEnabled })),
       setAutoBackupPath: (path) => set({ autoBackupPath: path }),
       setClassRadarPath: (path) => set({ classRadarPath: path }),
-      markClassRadarChecked: () => set({ classRadarCheckedAt: Date.now() }),
-    }),
+      markClassRadarChecked: () => set({ classRadarCheckedAt: Date.now() }),    }),
     { name: 'thetodo-settings' }
   )
 );

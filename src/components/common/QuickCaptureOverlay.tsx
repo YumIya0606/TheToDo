@@ -10,9 +10,10 @@ import { cn } from '@/lib/utils';
 import type { Priority } from '@/types';
 import {
   boosterStats, DURATION_PRESETS, formatMinutes, reduceBoosterAction, useBoosterStore,
-  type BoosterAction, type BoosterKind, type BoosterSeries,
+  type BoosterAction, type BoosterKind, type BoosterSeries, type StudyPointer,
 } from '@/stores/boosterStore';
 import { BoosterGrid } from '@/components/boosters/BoosterGrid';
+import { StudyPointerBanner } from '@/components/boosters/StudyPointerBanner';
 
 type Mode = 'mini' | 'full';
 
@@ -395,6 +396,11 @@ function AutoGrowTextarea({
 function BoosterPanel() {
   const [tab, setTab] = useState<BoosterKind>('theory');
   const [view, setView] = useState<BoosterSeries[]>(() => useBoosterStore.getState().series);
+  // Kept as its own piece of state, separate from `view`, for the same reason
+  // the grid is memoised: a study-plan change must not re-render 460 tiles.
+  const [pointer, setPointer] = useState<StudyPointer | null>(
+    () => useBoosterStore.getState().pointer
+  );
   const [selected, setSelected] = useState<number | null>(null);
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
@@ -403,14 +409,21 @@ function BoosterPanel() {
 
   useEffect(() => {
     const u1 = listen<BoosterSeries[]>('booster-state', (e) => setView(e.payload));
+    // The study pointer travels on its own channel so it can never be mistaken
+    // for a series change: this is what keeps the grid from re-rendering.
+    const u3 = listen<StudyPointer | null>('booster-pointer', (e) => setPointer(e.payload));
     // Resync whenever the window comes back to front — covers edits made in the
     // main app while this overlay was hidden.
     const u2 = win.onFocusChanged(({ payload: focused }) => {
-      if (focused) setView(useBoosterStore.getState().series);
+      if (focused) {
+        setView(useBoosterStore.getState().series);
+        setPointer(useBoosterStore.getState().pointer);
+      }
     });
     return () => {
       u1.then((f) => f()).catch(() => {});
       u2.then((f) => f()).catch(() => {});
+      u3.then((f) => f()).catch(() => {});
     };
   }, [win]);
 
@@ -503,8 +516,22 @@ function BoosterPanel() {
         )}
       </div>
 
-      {/* Episode grid — the trailing "+" tile adds a new episode (length picked
-          in-flow, never defaulted to the current one). */}
+    {/* What the channel says to work on next, when it concerns this series.
+        Sits above the scroll area, so the grid below is untouched. */}
+    {series && pointer && (tab === 'speed' ? pointer.kind === 'speed' : pointer.kind !== 'speed') && (
+      <StudyPointerBanner
+        pointer={pointer}
+        className="mb-1.5 shrink-0"
+        onJump={(num) => setSelected(num)}
+        onClear={() => {
+          setPointer(null);
+          void emit('booster-pointer', null);
+        }}
+      />
+    )}
+
+    {/* Episode grid — the trailing "+" tile adds a new episode (length picked
+    in-flow, never defaulted to the current one). */}
       <div className="flex-1 min-h-0 overflow-y-auto rounded-xl border border-white/5 bg-white/[0.02] p-2 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         {series && (
           <BoosterGrid

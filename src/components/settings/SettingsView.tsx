@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Moon, Sun, Bell, Info, Download, Upload, CheckCircle2, AlertCircle, ShieldCheck, FolderOpen } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Moon, Sun, Bell, Info, Download, Upload, CheckCircle2, AlertCircle, ShieldCheck, FolderOpen, Radio } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { useNoteStore } from '@/stores/noteStore';
@@ -10,6 +10,10 @@ import { cn } from '@/lib/utils';
 import { open } from '@tauri-apps/plugin-dialog';
 import { sendNotification } from '@tauri-apps/plugin-notification';
 import { collectBackupData, saveBackupToDisk, restoreBackupData } from '@/lib/backup';
+import { defaultSchedulePath, loadSchedule } from '@/lib/classRadar';
+import { toStudyPointer } from '@/lib/classRadar';
+import { useBoosterStore } from '@/stores/boosterStore';
+import { emit } from '@tauri-apps/api/event';
 
 export function SettingsView() {
   const { theme, toggleTheme } = useUIStore();
@@ -17,6 +21,56 @@ export function SettingsView() {
   const { notes } = useNoteStore();
   const { entries } = useDiaryStore();
   const { isAutoBackupEnabled, toggleAutoBackup, autoBackupPath, setAutoBackupPath } = useSettingsStore();
+  const { classRadarPath, setClassRadarPath, classRadarCheckedAt } = useSettingsStore();
+
+  const [radarState, setRadarState] = useState<'no data' | 'loading' | 'ok'>('no data');
+  const [radarError, setRadarError] = useState<string | null>(null);
+  const [radarCounts, setRadarCounts] = useState<Record<string, number> | null>(null);
+  const [radarPath, setRadarPath] = useState('');
+  const [radarDefault, setRadarDefault] = useState('');
+  const [manualRadarPath, setManualRadarPath] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    void defaultSchedulePath().then((p) => {
+      if (alive) {
+        setRadarDefault(p);
+        setRadarPath(classRadarPath ?? p);
+        setManualRadarPath(classRadarPath ?? '');
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [classRadarPath]);
+
+  const refreshRadar = async () => {
+    setRadarState('loading');
+    setRadarError(null);
+    const r = await loadSchedule(true);
+    if (r.ok && r.data) {
+      setRadarState('ok');
+      setRadarCounts(r.data.counts as unknown as Record<string, number>);
+      setRadarPath(r.path);
+      // Keep the booster pointer fresh from here too, so the study banner is
+      // right even when Classes has not been opened.
+      const next = toStudyPointer(r.data.boosterPlan);
+      if (next) {
+        useBoosterStore.getState().setPointer(next);
+        void emit('booster-pointer', next);
+      }
+    } else {
+      setRadarState('no data');
+      setRadarError(r.error);
+    }
+  };
+
+  const applyRadarPath = () => {
+    const trimmed = manualRadarPath.trim();
+    setClassRadarPath(trimmed || null);
+    setRadarPath(trimmed || radarDefault);
+    void refreshRadar();
+  };
 
   const [status, setStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
   const [isProcessing, setIsProcessing] = useState(false);
@@ -177,6 +231,92 @@ export function SettingsView() {
           >
             <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white transition-transform', theme === 'dark' ? 'translate-x-6' : 'translate-x-1')} />
           </button>
+        </div>
+      </section>
+
+      {/* ClassRadar */}
+      <section className={card}>
+        <h3 className="text-base font-semibold text-slate-200 flex items-center gap-2 mb-1">
+          <Radio className="h-4 w-4 text-cyan-400" /> ClassRadar
+        </h3>
+        <p className={cn(desc, 'mb-4')}>
+          Reads your tuition channels and brings the schedule in here. It is a separate app; this
+          only points at the file it exports.
+        </p>
+
+        <div className="space-y-2">
+          <div className={row}>
+            <div className="min-w-0">
+              <p className={label}>Schedule file</p>
+              <p className={cn(desc, 'font-mono text-[10px] truncate')}>
+                {radarPath || 'not set — the default location is used'}
+              </p>
+            </div>
+            <span
+              className={cn(
+                'px-2 py-0.5 rounded text-[10px] font-medium border shrink-0',
+                radarState === 'ok'
+                  ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25'
+                  : radarState === 'loading'
+                    ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/25'
+                    : 'bg-amber-500/10 text-amber-300 border-amber-500/25'
+              )}
+            >
+              {radarState === 'ok' ? 'connected' : radarState === 'loading' ? 'reading…' : 'no data'}
+            </span>
+          </div>
+
+          {radarCounts && (
+            <p className="text-[11px] text-slate-500">
+              {radarCounts.events} classes, {radarCounts.boosterPosts} study-plan posts,{' '}
+              {radarCounts.understood} of {radarCounts.messages} messages understood
+              {classRadarCheckedAt
+                ? ` · checked ${new Date(classRadarCheckedAt).toLocaleString('en-GB')}`
+                : ''}
+            </p>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              onClick={refreshRadar}
+              className="px-3 py-1.5 rounded-lg bg-cyan-500/15 text-cyan-300 text-xs font-medium
+                         border border-cyan-500/30 hover:bg-cyan-500/25 transition-colors"
+            >
+              {radarState === 'loading' ? 'Reading…' : 'Read now'}
+            </button>
+            <input
+              value={manualRadarPath}
+              onChange={(e) => setManualRadarPath(e.target.value)}
+              placeholder={radarDefault || 'C:\\Users\\...\\ClassRadar\\data\\schedule.json'}
+              className="flex-1 min-w-[220px] bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5
+                         text-[11px] font-mono text-slate-300 outline-none focus:border-cyan-500/50"
+            />
+            <button
+              onClick={applyRadarPath}
+              className="px-3 py-1.5 rounded-lg bg-white/5 text-slate-300 text-xs font-medium
+                         border border-white/10 hover:bg-white/10 transition-colors"
+            >
+              Use this path
+            </button>
+            {classRadarPath && (
+              <button
+                onClick={() => {
+                  setClassRadarPath(null);
+                  setManualRadarPath('');
+                  void refreshRadar();
+                }}
+                className="px-2 py-1.5 text-slate-500 hover:text-slate-300 text-xs transition-colors"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+
+          {radarError && (
+            <p className="text-[11px] text-amber-300/80">
+              {radarError} Open ClassRadar and press Export schedule, then Read now.
+            </p>
+          )}
         </div>
       </section>
 

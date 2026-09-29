@@ -104,8 +104,31 @@ export function reduceBoosterAction(series: BoosterSeries[], a: BoosterAction): 
   }
 }
 
+/**
+ * What the physics theory channel says to work on next.
+ *
+ * Held beside the series rather than inside them, deliberately. The grid renders
+ * 460 memoised tiles keyed on episode props, so anything that touched
+ * `series` would re-render every tile; a separate top-level field means a change
+ * of study plan costs one small banner and zero chips.
+ */
+export interface StudyPointer {
+  kind: BoosterKind | 'other';
+  episode: number | null;
+  tute: string | null;
+  questionStart: number | null;
+  questionEnd: number | null;
+  questionCount: number | null;
+  postedAt: number;
+  headline: string | null;
+  original: string;
+}
+
 interface BoosterState {
   series: BoosterSeries[];
+  /** Latest "which questions, which tute, which episode" from ClassRadar. */
+  pointer: StudyPointer | null;
+  setPointer: (p: StudyPointer | null) => void;
   toggleWatched: (series: BoosterKind, num: number) => void;
   /** Mark a range [from, to] as watched at a chosen average length. */
   markRangeWatched: (series: BoosterKind, from: number, to: number, minutes: number) => void;
@@ -122,6 +145,11 @@ export const useBoosterStore = create<BoosterState>()(
         { id: 'speed', name: 'Speed Boosters', episodes: seedEpisodes(SPEED_SEED) },
         { id: 'theory', name: 'Theory Boosters', episodes: seedEpisodes(THEORY_SEED) },
       ],
+      pointer: null,
+
+      // A plain field write: it never touches `series`, so no episode tile is
+      // asked to re-render when the study plan changes.
+      setPointer: (p) => set({ pointer: p }),
 
       toggleWatched: (s, num) => set((st) => ({ series: reduceBoosterAction(st.series, { type: 'toggle', series: s, num }) })),
       markRangeWatched: (s, from, to, minutes) =>

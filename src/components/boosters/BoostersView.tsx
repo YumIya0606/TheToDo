@@ -9,6 +9,7 @@ import { applyBoosterChangeWithStudy, PHYSICS_SUBJECT } from '@/lib/boosterStudy
 import { useUIStore } from '@/stores/uiStore';
 import { cn } from '@/lib/utils';
 import { BoosterGrid } from './BoosterGrid';
+import { StudyPointerBanner } from './StudyPointerBanner';
 
 type Tab = BoosterKind;
 const TABS: { id: Tab; label: string; icon: typeof Zap }[] = [
@@ -136,6 +137,12 @@ function StatPill({
 
 function SeriesPanel({ series, kind, light }: { series: BoosterSeries; kind: BoosterKind; light: boolean }) {
   const { setSeriesCount, resetSeries } = useBoosterStore();
+  // Read as its own subscription, and only used for the banner above the grid.
+  // The grid below is memoised on the series props, which the pointer never
+  // appears in, so a change of study plan costs this banner and zero episode
+  // tiles.
+  const pointer = useBoosterStore((s) => s.pointer);
+  const setPointer = useBoosterStore((s) => s.setPointer);
   const [selected, setSelected] = useState<number | null>(null);
   const [rangeFrom, setRangeFrom] = useState('');
   const [rangeTo, setRangeTo] = useState('');
@@ -148,6 +155,13 @@ function SeriesPanel({ series, kind, light }: { series: BoosterSeries; kind: Boo
   const accent = kind === 'speed' ? '#22d3ee' : '#a78bfa';
 
   const selectedEp = selected != null ? series.episodes.find((e) => e.num === selected) : undefined;
+
+  // A speed post belongs on the speed tab; a theory or unattributed post is
+  // theory work, so each tab shows only the pointer that concerns it.
+  const pointerForTab =
+    pointer && (kind === 'speed' ? pointer.kind === 'speed' : pointer.kind !== 'speed')
+      ? pointer
+      : null;
 
   const onSelect = useCallback((num: number) => setSelected(num), []);
 
@@ -378,6 +392,17 @@ function SeriesPanel({ series, kind, light }: { series: BoosterSeries; kind: Boo
               </button>
             )}
           </div>
+
+          {/* What the channel says to work on next, for this series only. */}
+          {pointerForTab && (
+            <StudyPointerBanner
+              pointer={pointerForTab}
+              light={light}
+              className="mb-2"
+              onJump={(num) => setSelected(num)}
+              onClear={() => setPointer(null)}
+            />
+          )}
 
           <div
             className={cn(

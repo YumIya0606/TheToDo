@@ -14,7 +14,9 @@ import {
 } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
 import { usePlannerStore } from '@/stores/plannerStore';
+import { useBoosterStore } from '@/stores/boosterStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { emit } from '@tauri-apps/api/event';
 import {
   fmtDate,
   fmtRange,
@@ -22,6 +24,7 @@ import {
   loadSchedule,
   todayISO,
   toPlannerSubject,
+  toStudyPointer,
   type RadarBooster,
   type RadarEvent,
   type ScheduleExport,
@@ -72,11 +75,27 @@ export function ClassesView() {
     if (r.ok && r.data) {
       setData(r.data);
       setError(null);
+      applyPointer(r.data.boosterPlan);
     } else {
       setData(null);
       setError(r.error);
     }
     setLoading(false);
+  };
+
+  /**
+   * Hand the newest study-plan post to the booster tracker.
+   *
+   * This writes a single store field, and the episode grid is memoised on the
+   * series, so no episode tile re-renders when the study plan changes. The
+   * pointer is also emitted so the Quick Capture overlay shows the same thing.
+   */
+  const applyPointer = (plan: RadarBooster[]) => {
+    const next = toStudyPointer(plan);
+    const before = useBoosterStore.getState().pointer;
+    if (next?.episode === before?.episode && next?.tute === before?.tute) return;
+    useBoosterStore.getState().setPointer(next);
+    void emit('booster-pointer', next);
   };
 
   useEffect(() => {
@@ -86,6 +105,7 @@ export function ClassesView() {
       if (r.ok && r.data) {
         setData(r.data);
         setError(null);
+        applyPointer(r.data.boosterPlan);
       } else {
         setError(r.error);
       }

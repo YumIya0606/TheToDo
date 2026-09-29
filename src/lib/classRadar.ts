@@ -1,5 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { useSettingsStore } from '@/stores/settingsStore';
+import type { StudyPointer } from '@/stores/boosterStore';
 
 /**
  * The shape ClassRadar writes to schedule.json.
@@ -178,4 +179,26 @@ export function toPlannerSubject(subject: string): string {
     default:
       return 'General English';
   }
+}
+
+/**
+ * The most recent study-plan post, as the booster tracker's pointer.
+ *
+ * Only the newest post is carried: the student works through the plan in order,
+ * and a list of every past post would be noise on the boost screen.
+ */
+export function toStudyPointer(plan: RadarBooster[]): StudyPointer | null {
+  const latest = [...plan].sort((a, b) => b.postedAt - a.postedAt)[0];
+  if (!latest) return null;
+  return {
+    kind: latest.kind === 'speed' || latest.kind === 'theory' ? latest.kind : 'other',
+    episode: latest.episode ?? null,
+    tute: latest.tute ?? null,
+    questionStart: latest.questionStart ?? null,
+    questionEnd: latest.questionEnd ?? null,
+    questionCount: latest.questionCount ?? null,
+    postedAt: latest.postedAt,
+    headline: latest.headline ?? null,
+    original: latest.original ?? '',
+  };
 }
