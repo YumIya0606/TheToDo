@@ -17,6 +17,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { usePlannerStore } from '@/stores/plannerStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { commitDrafts, draftsFromEvents, type TaskDraft } from '@/lib/classRadarTasks';
+import { ChannelsPanel } from './ChannelsPanel';
 import { useBoosterStore } from '@/stores/boosterStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { emit } from '@tauri-apps/api/event';
@@ -56,7 +57,7 @@ const STATUS_STYLE: Record<string, string> = {
   completed: 'bg-slate-500/15 text-slate-400 border-slate-500/25',
 };
 
-export function ClassesView() {
+export function ClassesView({ onRefresh }: { onRefresh?: () => void } = {}) {
   const [data, setData] = useState<ScheduleExport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -177,6 +178,12 @@ export function ClassesView() {
         title="Classes"
         subtitle="Read from your tuition channels by ClassRadar, in the words it actually used."
       />
+
+      {/* Channels: what is being read, and how far each has got. */}
+      <div className="pt-1">
+        <p className="panel-title mb-2">Tuition channels</p>
+        <ChannelsPanel onChanged={onRefresh ?? (() => {})} />
+      </div>
 
       {/* Connection */}
       <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">

@@ -99,12 +99,25 @@ export const usePlannerStore = create<PlannerState>()(
       setStudyRatio: (ratio) => set({ studyRatio: Math.min(1, Math.max(0.1, ratio)) }),
       setOnboarded: (v) => set({ onboarded: v }),
 
+      /**
+       * Load the student's real timetable.
+       *
+       * Additive, not all-or-nothing: only blocks whose label is not already
+       * present are added, so this is safe to offer on a planner that already has
+       * commitments and never overwrites something edited by hand.
+       */
       seedTimetable: () =>
-        set((s) =>
-          s.commitments.length > 0
-            ? {}
-            : { commitments: seedCommitments(genId), onboarded: true }
-        ),
+        set((s) => {
+          if (s.onboarded && s.commitments.length > 0) {
+            const have = new Set(s.commitments.map((c) => c.label.trim().toLowerCase()));
+            const additions = seedCommitments(genId).filter(
+              (c) => !have.has(c.label.trim().toLowerCase())
+            );
+            if (additions.length === 0) return {};
+            return { commitments: [...s.commitments, ...additions], onboarded: true };
+          }
+          return { commitments: seedCommitments(genId), onboarded: true };
+        }),
 
       toggleOffThisWeek: (id) =>
         set((s) => ({

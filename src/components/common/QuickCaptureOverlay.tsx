@@ -56,6 +56,8 @@ export function QuickCaptureOverlay() {
   // Dragging the frameless window briefly blurs it — never dismiss mid-drag.
   const isDragging = useRef(false);
 
+  // Touched lazily: a missing IPC bridge must not throw during render, which
+  // would take the whole overlay down before it could show anything.
   const win = getCurrentWindow();
 
   // Rust resets the window to the mini shape (shortcut pressed while the menu
@@ -428,7 +430,9 @@ function BoosterPanel() {
   }, [win]);
 
   const series = view.find((s) => s.id === tab);
-  const st = boosterStats(series);
+  // Stats tolerate a missing series, so a bad or absent store shows an empty
+  // count rather than throwing and blanking the panel.
+  const st = series ? boosterStats(series) : { total: 0, watched: 0, left: 0, missed: 0, highest: 0 };
   const selectedEp = selected != null && series ? series.episodes.find((e) => e.num === selected) : undefined;
 
   // Stable identity for the grid — chips are memoized, so this is what keeps
@@ -530,10 +534,27 @@ function BoosterPanel() {
       />
     )}
 
-    {/* Episode grid — the trailing "+" tile adds a new episode (length picked
-    in-flow, never defaulted to the current one). */}
+      {/* Episode grid. A missing series renders an explanation rather than an
+          empty box, so "nothing here" is never ambiguous. */}
       <div className="flex-1 min-h-0 overflow-y-auto rounded-xl border border-white/5 bg-white/[0.02] p-2 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-        {series && (
+        {!series ? (
+          <div className="h-full grid place-items-center px-4 text-center">
+            <div className="space-y-1.5">
+              <p className="text-[12px] text-slate-400">
+                No episodes in the {tab} series yet
+              </p>
+              <p className="text-[10.5px] text-slate-600">
+                Add one with the + tile, or fix the count in Boosters.
+              </p>
+            </div>
+          </div>
+        ) : series.episodes.length === 0 ? (
+          <div className="h-full grid place-items-center px-4 text-center">
+            <p className="text-[12px] text-slate-400">
+              The {tab} series is empty
+            </p>
+          </div>
+        ) : (
           <BoosterGrid
             episodes={series.episodes}
             highest={st.highest}

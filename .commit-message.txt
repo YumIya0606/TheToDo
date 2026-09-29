@@ -1,0 +1,36 @@
+Quick Capture showed nothing
+
+- The overlay is a frameless, always-on-top 44x44 shape with no title bar, so
+  any throw left a blank window with no way to tell that anything had gone
+  wrong. It is now wrapped in an error boundary that shows the message where it
+  can be seen, with Try again and Reset.
+- The booster panel no longer renders an empty box for a missing or empty
+  series; it says which series and what to do. Stats tolerate a missing series
+  instead of throwing and blanking everything.
+
+Channels are now visible
+
+- A new panel on the Classes screen showing every channel the engine reads: how
+  far each has been read, how much the model has understood, how many classes
+  and links came out of it, and when it was last read.
+- Per channel: read it now, and pause or resume it. A summary bar with the
+  total read and a progress bar per connection.
+- The channels with no public web preview are named explicitly, with what is
+  needed to read them, instead of silently reading nothing.
+
+The engine can start itself
+
+- Settings previously said to open the other app and left you there. It now
+  launches the engine and waits for it to answer, and says precisely what
+  failed if it cannot.
+
+The timetable
+
+- The offer only appeared on a completely empty planner, so anyone who had
+  added one commitment by hand never saw it. It now always appears: it loads
+  the eleven classes when empty, offers to add only the missing ones when
+  partial, and confirms when complete. The merge is idempotent and never
+  overwrites something edited by hand.
+
+Also removed the unused-mut warning on the sidecar, and made the stat fields in
+the overlay tolerate a missing series.

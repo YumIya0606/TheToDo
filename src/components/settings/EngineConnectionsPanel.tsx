@@ -10,7 +10,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { engine, engineAlive, type EngineConnection } from '@/lib/engine';
+import { engine, engineAlive, bundlePathFrom, defaultSchedulePath, launchEngine, type EngineConnection } from '@/lib/engine';
 import { cn } from '@/lib/utils';
 
 const KEY_STATUS: Record<string, { label: string; cls: string }> = {
@@ -35,6 +35,8 @@ export function EngineConnectionsPanel({ onRefresh }: { onRefresh: () => void })
   const [busy, setBusy] = useState<string | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ tone: 'ok' | 'bad'; text: string } | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [schedulePath, setSchedulePath] = useState('');
 
   // Add-key form, per connection
   const [newKey, setNewKey] = useState<Record<string, string>>({});
@@ -48,17 +50,20 @@ export function EngineConnectionsPanel({ onRefresh }: { onRefresh: () => void })
     if (!(await engineAlive())) {
       setAlive(false);
       setList(null);
+      // Learn where the engine would keep its data even while it is down, so
+      // the start button knows what to launch.
+      try {
+        setSchedulePath(await defaultSchedulePath());
+      } catch {
+        setSchedulePath('');
+      }
       return;
     }
     try {
-      const [r, s] = await Promise.all([engine.state(), engine.connections()]);
-      // The engine's own summary arrives keyed by pool; the full connection list
-      // is what the panel renders, so fetch it separately.
-      void s;
-      const conns = await engine.connections();
+      const [s, conns] = await Promise.all([engine.state(), engine.connections()]);
       setList(conns as unknown as EngineConnection[]);
       setAlive(true);
-      setError(r.advice ? r.advice.headline : null);
+      setError(s.advice ? s.advice.headline : null);
     } catch (e) {
       setAlive(false);
       setError((e as Error).message);
@@ -68,6 +73,29 @@ export function EngineConnectionsPanel({ onRefresh }: { onRefresh: () => void })
   useEffect(() => {
     void load();
   }, [load]);
+
+  /**
+   * Start the engine rather than telling the student to go and start another
+   * app. A frameless Tauri sidecar is not built yet, so this launches the Node
+   * bundle the engine already ships.
+   */
+  const startIt = async () => {
+    setStarting(true);
+    setMsg(null);
+    try {
+      const path = schedulePath || (await defaultSchedulePath());
+      const bundle = bundlePathFrom(path);
+      const dataDir = path.replace(/[\\/]schedule\.json$/i, '');
+      await launchEngine(bundle, 5188, dataDir);
+      await load();
+      onRefresh();
+      setMsg({ tone: 'ok', text: 'The reading engine is running.' });
+    } catch (e) {
+      setMsg({ tone: 'bad', text: (e as Error).message });
+    } finally {
+      setStarting(false);
+    }
+  };
 
   const run = async (id: string, fn: () => Promise<unknown>, okText?: string) => {
     setBusy(id);
@@ -101,16 +129,43 @@ export function EngineConnectionsPanel({ onRefresh }: { onRefresh: () => void })
 
   if (alive === false) {
     return (
-      <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-4 flex items-start gap-2.5">
-        <AlertTriangle className="h-4 w-4 text-amber-300 shrink-0 mt-px" />
-        <div className="text-[12px] text-amber-200/90">
-          <p className="font-semibold">The reading engine is not running</p>
-          <p className="mt-0.5 text-amber-200/70">
-            Channels are read by a separate engine process. Open{' '}
-            <span className="font-mono">ClassRadar</span> once, or restart this app, and this
-            section will fill in.
-          </p>
+      <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-4 space-y-2.5">
+        <div className="flex items-start gap-2.5">
+          <AlertTriangle className="h-4 w-4 text-amber-300 shrink-0 mt-px" />
+          <div className="text-[12px] text-amber-200/90 min-w-0 flex-1">
+            <p className="font-semibold">The reading engine is not running</p>
+            <p className="mt-0.5 text-amber-200/70 leading-relaxed">
+              Your tuition channels are read by a separate engine. Start it here and this section
+              fills in with your connections and keys.
+            </p>
+            {schedulePath && (
+              <p className="mt-1.5 text-[10px] text-amber-200/50 font-mono truncate">
+                {schedulePath}
+              </p>
+            )}
+          </div>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={startIt}
+            disabled={starting}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-100
+                       text-xs font-semibold border border-amber-500/30 hover:bg-amber-500/30
+                       transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={cn('h-3.5 w-3.5', starting && 'animate-spin')} />
+            {starting ? 'Starting…' : 'Start the engine'}
+          </button>
+          <button
+            onClick={() => void load()}
+            className="text-[11px] text-amber-200/60 hover:text-amber-100 transition-colors"
+          >
+            Check again
+          </button>
+        </div>
+        {msg?.tone === 'bad' && (
+          <p className="text-[11px] text-rose-300/90 leading-relaxed">{msg.text}</p>
+        )}
       </div>
     );
   }

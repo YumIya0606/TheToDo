@@ -81,7 +81,53 @@ export function startEngine(path: string): Promise<number> {
   return invoke<number>('engine_start', { enginePath: path });
 }
 
+/** The default location of the exported schedule, which anchors everything else. */
+export function defaultSchedulePath(): Promise<string> {
+  return invoke<string>('classradar_default_path');
+}
+
+/**
+ * Launch the engine as a plain child process.
+ *
+ * Used when the engine is not already running, so opening Settings is enough to
+ * get it going rather than requiring a second app to be started by hand.
+ */
+export async function launchEngine(
+  bundlePath: string,
+  port: number,
+  dataDir: string
+): Promise<void> {
+  await invoke<number>('engine_launch', { enginePath: bundlePath, port, dataDir });
+  // The process needs a moment to bind its port before the first request.
+  for (let i = 0; i < 12; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    if (await engineAlive()) return;
+  }
+  throw new Error('The engine started but did not answer. Check that its data folder is writable.');
+}
+
+/** Where the engine bundle is expected, given where the schedule lives. */
+export function bundlePathFrom(schedulePath: string): string {
+  // <APPDATA>/ClassRadar/data/schedule.json -> <APPDATA>/ClassRadar/engine/server.cjs
+  const dataDir = schedulePath.replace(/[\\/]schedule\.json$/i, '');
+  const root = dataDir.replace(/[\\/]data$/i, '');
+  return `${root}\\engine\\server.cjs`;
+}
+
+export interface EngineState {
+  mode: string;
+  authenticated: boolean;
+  providerReady: boolean;
+  pendingAnalysis: number;
+  advice: { headline: string; detail: string; action: string; severity: string } | null;
+}
+
 export const engine = {
+  channels: () => call<unknown[]>('/api/channels', 'GET'),
+  setChannelEnabled: (id: number, enabled: boolean) =>
+    call<unknown>(`/api/channels/${id}`, 'PATCH', { enabled }),
+  syncChannel: (username: string) => call<unknown>('/api/sync', 'POST', { only: username }),
+  syncAll: () => call<unknown>('/api/sync', 'POST', {}),
   connections: () => call<EngineConnections>('/api/connections', 'GET'),
   use: (id: string) => call<unknown>('/api/connections/activate', 'POST', { id }),
   setModel: (id: string, model: string) => call<unknown>(`/api/connections/${encodeURIComponent(id)}`, 'PATCH', { model }),

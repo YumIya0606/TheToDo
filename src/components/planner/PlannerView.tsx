@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Sigma, Atom, FlaskConical, BookMarked, CalendarClock, Plus, Trash2, Zap,
-  Clock, Sparkles, Target, TrendingUp, Play,
+  Clock, Sparkles, Target, TrendingUp, Play, CheckCircle2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -134,30 +134,57 @@ export function PlannerView() {
         subtitle="Log your week, own your free time — balanced across every subject."
       />
 
-      {/* An empty planner offers the real timetable rather than making the
-          student retype it. Everything it adds stays editable. */}
-      {commitments.length === 0 && (
+  {/* The student's real timetable, offered whenever it is not fully present.
+      Previously this only appeared on a completely empty planner, so anyone who
+      had already added a single commitment by hand never saw it. Matching is on
+      the label, so re-offering is idempotent rather than duplicating. */}
+  {(() => {
+    const have = new Set(commitments.map((c) => c.label.trim().toLowerCase()));
+    const missing = SEED_TIMETABLE.filter((c) => !have.has(c.label.trim().toLowerCase()));
+    if (missing.length === 0) {
+      return (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl border border-cyan-500/30 bg-cyan-500/[0.06] p-4 flex flex-wrap items-center gap-3"
+          className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.05] px-4 py-2.5 flex items-center gap-2.5"
         >
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-cyan-200">Load your tuition timetable</p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Adds your {SEED_TIMETABLE.length} weekly classes, including the ones that only run
-              every other week. You can rename, retime or delete any of them afterwards.
-            </p>
-          </div>
-          <button
-            onClick={seedTimetable}
-            className="px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-200 text-xs font-semibold
-                       border border-cyan-500/40 hover:bg-cyan-500/30 transition-colors"
-          >
-            Load timetable
-          </button>
+          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+          <p className="text-[12px] text-emerald-200/90">
+            Your tuition timetable is loaded — {commitments.length} weekly block
+            {commitments.length === 1 ? '' : 's'}, editable below.
+          </p>
         </motion.div>
-      )}
+      );
+    }
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-xl border border-cyan-500/30 bg-cyan-500/[0.06] p-4 flex flex-wrap items-center gap-3"
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-cyan-200">
+            {commitments.length === 0 ? 'Load your tuition timetable' : `Add ${missing.length} class${missing.length === 1 ? '' : 'es'} you are missing`}
+          </p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            {commitments.length === 0
+              ? `Adds your ${SEED_TIMETABLE.length} weekly classes, including the ones that only run every other week. You can rename, retime or delete any of them afterwards.`
+              : `You have ${commitments.length} of ${SEED_TIMETABLE.length}. This only adds what is not there, so nothing you edited by hand is overwritten.`}
+          </p>
+          <p className="text-[11px] text-slate-500 mt-1.5 truncate">
+            {missing.map((c) => `${c.label} · ${FULL_DAY_LABELS[c.days[0]]}`).join('   ')}
+          </p>
+        </div>
+        <button
+          onClick={seedTimetable}
+          className="px-4 py-2 rounded-lg bg-cyan-500/20 text-cyan-200 text-xs font-semibold
+                     border border-cyan-500/40 hover:bg-cyan-500/30 transition-colors"
+        >
+          {commitments.length === 0 ? 'Load timetable' : `Add ${missing.length}`}
+        </button>
+      </motion.div>
+    );
+  })()}
 
       {/* Day selector */}
       <div className="flex items-center gap-2 flex-wrap">

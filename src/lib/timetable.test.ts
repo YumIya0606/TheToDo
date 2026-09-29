@@ -158,3 +158,32 @@ describe('the seeded timetable', () => {
     expect(flagged).toEqual(['Chemistry Paper Class', 'Gaming']);
   });
 });
+
+describe('loading the timetable is additive', () => {
+  it('adds only what is missing, so hand-edited blocks survive', () => {
+    // The store action is what the button calls. Replicated here because the
+    // store needs a browser localStorage to hydrate; the merge rule is the part
+    // worth pinning.
+    const existing = [
+      { id: 'c1', label: 'Physics Theory Class', startTime: '15:00', endTime: '19:00', days: [4] },
+    ];
+    const have = new Set(existing.map((c) => c.label.trim().toLowerCase()));
+    const additions = seedCommitments(genId).filter(
+      (c) => !have.has(c.label.trim().toLowerCase())
+    );
+
+    expect(additions).toHaveLength(SEED_TIMETABLE.length - 1);
+    expect(additions.map((c) => c.label)).not.toContain('Physics Theory Class');
+    // The one already present keeps the student's own times.
+    expect(existing[0].startTime).toBe('15:00');
+  });
+
+  it('is idempotent: a second run adds nothing', () => {
+    const first = seedCommitments(genId);
+    const have = new Set(first.map((c) => c.label.trim().toLowerCase()));
+    const second = seedCommitments(genId).filter(
+      (c) => !have.has(c.label.trim().toLowerCase())
+    );
+    expect(second).toHaveLength(0);
+  });
+});

@@ -202,6 +202,37 @@ fn read_classradar_schedule(export_path: String) -> Result<String, String> {
     }
 }
 
+/// Launch the engine as a plain child process.
+///
+/// A Tauri sidecar needs a bundled binary per platform, which is not built yet.
+/// Spawning the Node bundle directly does the same job for a student running
+/// this on their own machine, which is the only case that matters today, and it
+/// keeps the failure message specific when Node is not installed.
+#[tauri::command]
+fn engine_launch(engine_path: String, port: u16, data_dir: String) -> Result<u32, String> {
+    use std::process::{Command, Stdio};
+
+    if !std::path::Path::new(&engine_path).exists() {
+        return Err(format!("No engine at {engine_path}"));
+    }
+
+    let child = Command::new("node")
+        .arg(&engine_path)
+        .env("CLASSRADAR_PORT", port.to_string())
+        .env("CLASSRADAR_DATA_DIR", &data_dir)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| {
+            format!(
+                "Could not start the engine: {e}. Node needs to be installed and on the PATH."
+            )
+        })?;
+
+    Ok(child.id())
+}
+
 /// Where ClassRadar is expected to live, so the default path is not a guess.
 #[tauri::command]
 fn classradar_default_path() -> String {
@@ -268,13 +299,20 @@ async fn engine_alive(state: tauri::State<'_, EnginePort>) -> Result<bool, Strin
 /// second app by hand. The path is where the engine's bundle lives.
 #[tauri::command]
 async fn engine_start(app: tauri::AppHandle, engine_path: String) -> Result<u32, String> {
-    let mut sidecar = tauri_plugin_shell::ShellExt::shell(&app)
+    let sidecar = tauri_plugin_shell::ShellExt::shell(&app)
         .sidecar("classradar-engine")
-        .map_err(|e| format!("Engine sidecar is not available: {e}"))?;
+        .map_err(|e| {
+            format!(
+                "The engine sidecar is not bundled with this build ({e}). Run it yourself, or use \
+                 a path in Settings."
+            )
+        })?;
     let (mut rx, _child) = sidecar
         .spawn()
         .map_err(|e| format!("Could not start the engine from {engine_path}: {e}"))?;
-    rx.recv().await;
+    // Reading one event confirms the process is actually up, rather than
+    // returning a pid for something that immediately died.
+    let _ = rx.recv().await;
     Ok(0)
 }
 
@@ -315,7 +353,8 @@ fn main() {
             classradar_default_path,
             engine_request,
             engine_alive,
-            engine_start
+            engine_start,
+            engine_launch
         ])
         .manage(EnginePort(std::env::var("CLASSRADAR_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(5188)))
         .run(tauri::generate_context!())
