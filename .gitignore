@@ -2,7 +2,11 @@ node_modules/
 dist/
 src-tauri/target/
 engine/dist/
-engine/data/
+# The reading engine's messages, database, Telegram session and downloads, at
+# whatever depth it was created. It holds API keys in plaintext, so it must
+# never be tracked.
+**/data/
+engine/**/data/
 docs/*.local.md
 *.log
 .env
