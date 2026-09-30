@@ -233,6 +233,52 @@ fn engine_launch(engine_path: String, port: u16, data_dir: String) -> Result<u32
     Ok(child.id())
 }
 
+/// Where the reading engine's bundle is.
+///
+/// The engine is part of this project, so it ships beside the app rather than in
+/// a separate install. In a bundle that is the resource directory; in
+/// `tauri dev` it is the working directory. Resolving it here rather than in
+/// the webview means one place knows, and the frontend never hard-codes a path.
+#[tauri::command]
+fn engine_bundle_path(app: tauri::AppHandle) -> Result<String, String> {
+    let mut candidates: Vec<std::path::PathBuf> = Vec::new();
+
+    // Bundled: resources are resolved relative to the executable.
+    if let Ok(dir) = app.path().resource_dir() {
+        candidates.push(dir.join("engine").join("dist").join("server.cjs"));
+        candidates.push(dir.join("server.cjs"));
+    }
+    // Development: the project root is the working directory.
+    if let Ok(cwd) = std::env::current_dir() {
+        candidates.push(cwd.join("engine").join("dist").join("server.cjs"));
+        candidates.push(cwd.join("..").join("engine").join("dist").join("server.cjs"));
+    }
+
+    for c in &candidates {
+        if c.exists() {
+            return Ok(c.to_string_lossy().to_string());
+        }
+    }
+    Err(format!(
+        "The reading engine is not built. Run `npm run build:engine`. Looked in: {}",
+        candidates
+            .iter()
+            .map(|p| p.to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    ))
+}
+
+/// Where the engine keeps its data, inside the app's own data folder so there is
+/// one thing to back up rather than two.
+#[tauri::command]
+fn engine_data_dir(app: tauri::AppHandle) -> String {
+    app.path()
+        .app_data_dir()
+        .map(|d| d.join("engine").to_string_lossy().to_string())
+        .unwrap_or_else(|_| "engine-data".to_string())
+}
+
 /// Where ClassRadar is expected to live, so the default path is not a guess.
 #[tauri::command]
 fn classradar_default_path() -> String {
@@ -351,6 +397,8 @@ fn main() {
             collapse_quick_capture,
             read_classradar_schedule,
             classradar_default_path,
+            engine_bundle_path,
+            engine_data_dir,
             engine_request,
             engine_alive,
             engine_start,

@@ -10,7 +10,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { engine, engineAlive, bundlePathFrom, defaultSchedulePath, launchEngine, type EngineConnection } from '@/lib/engine';
+import { engine, engineAlive, engineBundlePath, engineDataDir, defaultSchedulePath, launchEngine, type EngineConnection } from '@/lib/engine';
 import { cn } from '@/lib/utils';
 
 const KEY_STATUS: Record<string, { label: string; cls: string }> = {
@@ -83,9 +83,7 @@ export function EngineConnectionsPanel({ onRefresh }: { onRefresh: () => void })
     setStarting(true);
     setMsg(null);
     try {
-      const path = schedulePath || (await defaultSchedulePath());
-      const bundle = bundlePathFrom(path);
-      const dataDir = path.replace(/[\\/]schedule\.json$/i, '');
+      const [bundle, dataDir] = await Promise.all([engineBundlePath(), engineDataDir()]);
       await launchEngine(bundle, 5188, dataDir);
       await load();
       onRefresh();

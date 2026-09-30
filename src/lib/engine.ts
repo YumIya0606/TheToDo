@@ -86,6 +86,16 @@ export function defaultSchedulePath(): Promise<string> {
   return invoke<string>('classradar_default_path');
 }
 
+/** Where the engine's bundle is. Resolved in Rust, so the webview never guesses. */
+export function engineBundlePath(): Promise<string> {
+  return invoke<string>('engine_bundle_path');
+}
+
+/** Where the engine keeps its data. */
+export function engineDataDir(): Promise<string> {
+  return invoke<string>('engine_data_dir');
+}
+
 /**
  * Launch the engine as a plain child process.
  *
@@ -104,14 +114,6 @@ export async function launchEngine(
     if (await engineAlive()) return;
   }
   throw new Error('The engine started but did not answer. Check that its data folder is writable.');
-}
-
-/** Where the engine bundle is expected, given where the schedule lives. */
-export function bundlePathFrom(schedulePath: string): string {
-  // <APPDATA>/ClassRadar/data/schedule.json -> <APPDATA>/ClassRadar/engine/server.cjs
-  const dataDir = schedulePath.replace(/[\\/]schedule\.json$/i, '');
-  const root = dataDir.replace(/[\\/]data$/i, '');
-  return `${root}\\engine\\server.cjs`;
 }
 
 export interface EngineState {

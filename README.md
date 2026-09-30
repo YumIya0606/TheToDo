@@ -1,161 +1,126 @@
-# TheToDo — Productivity Suite
+# TheToDo
 
-A beautiful, feature-rich desktop productivity app built with **Tauri v2 + React 19 + TypeScript + Tailwind v4 + Zustand**. Tasks, notes, diary, tags, automation, an immersive creative-writing mode (SilentBoy), and a WebGL-powered Focus timer — in one polished package.
+**A study planner for an A/L student in Sri Lanka, and the reading engine that
+feeds it.**
 
----
-
-## ✨ Features
-
-### Tasks
-- **Multiple views** — Dashboard (stats), List, Kanban board, and an Eisenhower Matrix.
-- **Priority levels** — Low / Medium / High / Urgent with color-coded badges.
-- **Due dates & scheduling** — Schedule a task and get an **OS notification + in-app toast** exactly once when it's due.
-- **Subtasks, tags & filtering.**
-
-### Notes
-- Rich notes with folders, tags, and full-text search.
-
-### Diary
-- Calendar + list of entries, optional password lock, and mood tagging.
-
-### SilentBoy (creative writing mode)
-- A distraction-free, pitch-black writing environment for poetry and lyrics.
-- Mood tags (Sad / Reflective / Silent / Deep / Happy), serif/mono/typewriter font toggle, and chrome that fades away while you type.
-
-### Focus Mode (study stopwatch)
-- A **WebGL fluid shader** (raw GLSL, no libraries) fills a circular tank as you study — with caustics, specular crests, and a drain animation every hour.
-- Stopwatch (counts up), per-subject study analytics by day, stars per hour studied, and manual H:M:S add/edit.
-- Quick **TASKS / ANALYTICS / NOTES** buttons hug the timer's right edge — each tab's left corner is clipped to follow the circle's curve, with a glow that traces the cut shape on hover.
-
-### Study Planner 📅
-Built for A/L maths-stream students (Combined Maths, Physics, Chemistry, English):
-- **Onboarding wizard** logs your school hours, sleep, and tuition classes — all fully editable afterward.
-- **Free-time engine**: computes what's left of each day after your commitments, then splits it across subjects. **Weak subjects get a double share.**
-- **Day-by-day breakdown** — per-day free time, a 7-day bar chart, and a live "studied vs planned" progress per subject.
-- **One tap into Focus Mode** — "Start Focus Session" on any subject card jumps straight into the timer with that subject pre-selected.
-- **Study reminders** — set a daily "study X at HH:mm" nudge; fires as an OS notification + in-app toast once per day.
-
-### Quick Capture overlay ⚡
-- Press **`Ctrl + Shift + X`** from **anywhere on your PC** — a glassmorphic overlay appears.
-- Instantly capture a **Task** (with priority) or a **Note**. Press **`Enter`** to save, **`Esc`** or click away to dismiss.
-- **Pin** the overlay to keep it open while you click around; drag it by its header to reposition anywhere.
-- Captures land in the main app instantly, with a confirmation toast.
-
-### Automation
-- Launch `cmd` / `powershell` scripts natively from the Rust backend (bypasses execution policy with `-ExecutionPolicy Bypass`), with a `.ps1` path guard, edit support, and toast feedback.
-
-### Data
-- **Export / Import** a complete JSON backup (tasks, notes, diary, automation, settings) via a native dialog, with a browser-download fallback.
-- Optional **auto-backup** path in Settings.
+Your teachers post 20–30 Telegram messages a day, mostly in Sinhala: class
+times, last-minute postponements, Zoom links, YouTube recordings, papers to
+attempt before class, and a daily "which questions, which tute" note for the
+physics theory channel. The engine reads all of it and explains it in English.
+Everything lands in the app as a class calendar, a to-do list, a study plan and
+a link library.
 
 ---
 
-## ⌨️ Keyboard shortcuts
+## One project
 
-| Shortcut | Action |
-|---|---|
-| `Ctrl + Shift + X` | Open the **Quick Capture** overlay (works anywhere on your PC) |
-| `Ctrl + K` | Command palette |
-| `Enter` | Capture the current overlay item |
-| `Esc` | Dismiss the overlay |
+The reading engine used to be a separate app. It now lives here, in
+`engine/`, and is started by the app itself. There is nothing extra to install
+and nothing extra to run.
 
----
+```
+test/
+  src/            the interface
+  src-tauri/      the Rust shell, windows and commands
+  engine/         the reading engine
+    server/src/     Telegram, AI, database, the schedule it exports
+    tools/          diagnostics for the engine
+    dist/           built bundle (generated)
+  shared/         types both halves agree on
+  tools/          checks across the whole project
+  docs/
+```
 
-## 🚀 Getting started
+One `npm install`, one `npm run build`, one repository, one set of tests.
 
-### Prerequisites
-- **Node.js 18+** and **npm**
-- **Rust** (install via https://rustup.rs) — required by Tauri
-- On Windows: the **WebView2 runtime** (preinstalled on Windows 10/11)
-
-### Install & run
+## Getting started
 
 ```bash
-# 1. Install frontend dependencies
-npm install
-
-# 2. Run in development mode (launches the Vite dev server + Tauri window)
-npm run tauri dev
+npm install          # once
+npm run tauri dev    # develop
+npm run tauri build  # a desktop app
 ```
 
-### Build the final app (production)
+The reading engine is built as part of `npm run build`; you never start it by
+hand. Settings → **API keys & connections** starts it if it is not running.
+
+---
+
+## What it does
+
+| Screen | |
+|---|---|
+| **Dashboard** | List, Kanban and Matrix over your tasks |
+| **Today** | The next class, your to-do list, what the channels are saying |
+| **Study Planner** | Recurring time commitments, alternate weeks, and a free-time engine that splits what is left across your subjects, weak ones getting more |
+| **Classes** | The schedule read from your tuition channels, with per-channel coverage, Zoom and video links, and the original Sinhala behind each reading |
+| **Boosters** | Speed and Theory episode trackers, plus what the channel says to work on next |
+| **Notes · Diary · Tags** | |
+| **SilentBoy** | A writing mode that gets out of the way, and gets out of the way of you |
+| **Focus Mode** | A WebGL water shader and real study-time analytics |
+| **Quick Capture** | `Ctrl+Shift+X` anywhere, from a floating 44×44 window |
+
+---
+
+## The reading engine
+
+It is API-only; the app renders everything. The two meet over a loopback port
+and one exported file, `schedule.json`.
+
+```
+Telegram  →  SQLite  →  AI extraction  →  schedule.json  →  the app
+```
+
+- **Telegram** over MTProto with your own account, or the public web preview
+  where one exists. Three of your channels need an account; the rest do not.
+- **Extraction** is one message per call, oldest first, with no conversation
+  history: about 1,500 tokens each, so context length is never a concern. The
+  model returns the class type, the date and time, whether a class moved, what
+  you must do, and — for the daily theory posts — the tute, the exact question
+  numbers, and the booster episode.
+- **Media is never sent to a model.** A file's name goes into the prompt; a PDF
+  is read on this machine and only a short excerpt is used. Images are not sent
+  at all.
+- **Keys rotate.** Free tiers cap requests per key, so several keys for one
+  connection multiply your allowance. Throttled keys are parked with a growing
+  cooldown and the queue moves on; rejected keys are taken out of rotation.
+- **A second opinion** is optional. Reading a date or a time twice with
+  different models, and showing only the messages where they disagree, is a
+  better guard than a single confident answer.
+
+### Channels
+
+| Channel | Subject | Public preview |
+|---|---|---|
+| `@RD27T` | Combined Maths theory | yes |
+| `@RD_27REVISION` | Combined Maths revision | yes |
+| `@DU27PPR` | Physics paper | yes |
+| `@RD27PAPERONLINE` | Combined Maths paper | no — needs your account |
+| `@DU27T` | Physics theory | no — needs your account |
+| `@DU27BNRe` | Physics revision | no — needs your account |
+
+---
+
+## Checks
 
 ```bash
-# Type-check + bundle the frontend, then compile a release binary
-npm run tauri build
+npm test              # 53 tests
+npm run check:sync    # the app and the engine agree
+npm run check:sinhala # the Sinhala text survived every edit
+npm run check:encoding
+npm run check:perf    # the booster grid's cost
+npm run check:all
 ```
 
-The output lives in `src-tauri/target/release/`:
-- **`thetodo.exe`** — the standalone executable (no console window; this is the one to use)
-- `bundle/msi/TheToDo_2.0.0_x64_en-US.msi` — Windows installer
+`check:sync` matters most: the app and the engine are separate processes with
+separate type definitions for the same file, so nothing in either language would
+otherwise notice a drift.
 
-> **Note:** the file at `src-tauri/target/debug/thetodo.exe` is a **debug** build. It opens a console window and points at the dev server, so it appears blank when the dev server isn't running. Always use the **release** build above for daily use.
+## Your data
 
----
+Everything is local, in the app's own data folder. One backup covers all of it —
+tasks, notes, diary, planner, boosters, study analytics, and the engine's channels.
+`Backup` in Settings writes the lot to a file you choose.
 
-## 🎨 Tech stack
-
-| Area | Technology |
-|---|---|
-| Desktop framework | Tauri v2 |
-| Frontend | React 19, TypeScript |
-| Styling | Tailwind CSS v4 |
-| State | Zustand (persisted to localStorage) |
-| Animation | Framer Motion + raw WebGL/GLSL |
-| Icons | Lucide React |
-| Bundler | Vite |
-
----
-
-## 📁 Project structure
-
-```
-thetodo/
-├── src/
-│   ├── components/
-│   │   ├── common/       # Sidebar, modals, CommandPalette, QuickCaptureOverlay,
-│   │   │                 # FocusWaterShader (WebGL), InAppToast, AutoBackup
-│   │   ├── todo/         # ListView, KanbanView, MatrixView, TaskCard, TaskModal
-│   │   ├── notes/        # NotesView, NoteTree, NoteEditor (TipTap), NoteModal
-│   │   ├── diary/        # DiaryView, DiaryModal
-│   │   ├── silentboy/    # SilentBoyView (immersive writing)
-│   │   ├── planner/      # PlannerView + onboarding wizard (free-time engine)
-│   │   ├── tags/         # TagsView (unified tag browser)
-│   │   ├── automation/   # AutomationView (native script runner)
-│   │   ├── settings/     # SettingsView, ImportExportView
-│   │   └── analytics/    # DashboardView (stats)
-│   ├── stores/           # Zustand stores (task, note, diary, focus, ui, …)
-│   ├── lib/              # utils, backup (export/import)
-│   └── types/            # Shared TypeScript types
-├── src-tauri/
-│   ├── src/main.rs       # Tauri commands, plugins, global shortcut
-│   ├── capabilities/     # Permission sets (main + quick-capture windows)
-│   └── tauri.conf.json   # Windows, bundle config
-└── package.json
-```
-
----
-
-## 🛠️ How the Quick Capture overlay works
-
-1. A second Tauri window (`quick-capture`) is declared in `tauri.conf.json` — frameless, transparent, always-on-top, and hidden on startup.
-2. A **global shortcut** (`Ctrl+Shift+X`) is registered in Rust (`main.rs`) via `tauri-plugin-global-shortcut`, so it works even when the app is in the background.
-3. The overlay loads the same frontend bundle under the `#/quick-capture` hash (`main.tsx` swaps in `QuickCaptureOverlay`).
-4. On capture it emits a Tauri `quick-capture` event; the main window listens (`App.tsx`), writes to the task/note stores, and shows a confirmation toast.
-
----
-
-## 🎯 Roadmap
-
-1. Cloud sync
-2. Mobile app (iOS/Android)
-3. Collaboration features
-4. Calendar integration
-
----
-
-## 📄 License
-
-MIT — see `LICENSE`.
-
-Made with ❤️ for productive people everywhere.
+The engine keeps its messages, database and Telegram session separately under
+`engine/`, so a restore of the app's data never disturbs what has been read.

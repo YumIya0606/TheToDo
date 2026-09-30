@@ -13,7 +13,9 @@ import path from 'node:path';
  */
 
 const ROOT = process.cwd();
-const ENGINE_ROOT = process.env.ENGINE_ROOT ?? 'D:\\PROJECTS\\Class msg Filter\\ClassRadar';
+// The engine is part of this repository, not a separate project, so the two
+// halves are checked against each other from the same tree.
+const ENGINE_ROOT = process.env.ENGINE_ROOT ?? path.join(ROOT, 'engine');
 
 const reports = [];
 const add = (name, ok, detail) => reports.push({ name, ok, detail });
