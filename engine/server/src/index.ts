@@ -120,7 +120,10 @@ import {
   submitPassword,
 } from "./telegram/mtproto.js";
 
-const PORT = Number(process.env.PORT ?? 5178);
+// One name, used by the launcher, the desktop shell and the docs. The desktop
+// shell sets this before spawning the engine; 0 asks the OS for a free port,
+// which is what a second engine instance needs and nothing else should use.
+const PORT = Number(process.env.CLASSRADAR_PORT ?? 5188);
 
 // node:sqlite is stable in practice but still flagged experimental by Node, and
 // the warning would otherwise be the first thing a user sees.

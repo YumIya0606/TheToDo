@@ -57,8 +57,10 @@ if (!process.env.THETODO_DEBUG) {
   };
 }
 const { startServer } = require("./server.cjs");
-// The launcher prints its own banner, so the server's is suppressed.
-startServer(0, true).then((running) => {
+// No port argument: the server reads CLASSRADAR_PORT, which is the one name the
+// launcher, the desktop shell and the docs all use. Passing 0 here would make
+// every run pick a different port.
+startServer(undefined, true).then((running) => {
   console.log("\\n  TheToDo reading engine  ->  " + running.url + "\\n");
   for (const sig of ["SIGINT", "SIGTERM"]) {
     process.on(sig, () => running.close().finally(() => process.exit(0)));
