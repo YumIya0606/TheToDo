@@ -96,6 +96,20 @@ export function engineDataDir(): Promise<string> {
   return invoke<string>('engine_data_dir');
 }
 
+export interface TelegramCredentialInfo {
+  configured: boolean;
+  source: string;
+  apiId: string;
+  apiHash: string;
+  envPath: string;
+}
+
+export const credentials = {
+  info: () => invoke<TelegramCredentialInfo>('classradar_credentials'),
+  save: (apiId: string, apiHash: string) =>
+    invoke<{ ok: boolean; note: string }>('classradar_credentials_save', { apiId, apiHash }),
+};
+
 /**
  * Launch the engine as a plain child process.
  *

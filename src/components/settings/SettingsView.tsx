@@ -1,5 +1,16 @@
-import { useEffect, useState } from 'react';
-import { Moon, Sun, Bell, Info, Download, Upload, CheckCircle2, AlertCircle, ShieldCheck, FolderOpen, Radio, KeyRound } from 'lucide-react';
+import { useState } from 'react';
+import {
+  Moon,
+  Sun,
+  Bell,
+  Info,
+  Download,
+  Upload,
+  CheckCircle2,
+  AlertCircle,
+  ShieldCheck,
+  FolderOpen,
+} from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { useNoteStore } from '@/stores/noteStore';
@@ -10,70 +21,20 @@ import { cn } from '@/lib/utils';
 import { open } from '@tauri-apps/plugin-dialog';
 import { sendNotification } from '@tauri-apps/plugin-notification';
 import { collectBackupData, saveBackupToDisk, restoreBackupData } from '@/lib/backup';
-import { defaultSchedulePath, loadSchedule } from '@/lib/classRadar';
-import { toStudyPointer } from '@/lib/classRadar';
-import { useBoosterStore } from '@/stores/boosterStore';
-import { emit } from '@tauri-apps/api/event';
-import { EngineConnectionsPanel } from './EngineConnectionsPanel';
+import { ChannelsSettings } from './ChannelsSettings';
 
 export function SettingsView({ onRefresh }: { onRefresh?: () => void } = {}) {
   const { theme, toggleTheme } = useUIStore();
   const { tasks } = useTaskStore();
   const { notes } = useNoteStore();
   const { entries } = useDiaryStore();
-  const { isAutoBackupEnabled, toggleAutoBackup, autoBackupPath, setAutoBackupPath } = useSettingsStore();
-  const { classRadarPath, setClassRadarPath, classRadarCheckedAt } = useSettingsStore();
+  const { isAutoBackupEnabled, toggleAutoBackup, autoBackupPath, setAutoBackupPath } =
+    useSettingsStore();
 
-  const [radarState, setRadarState] = useState<'no data' | 'loading' | 'ok'>('no data');
-  const [radarError, setRadarError] = useState<string | null>(null);
-  const [radarCounts, setRadarCounts] = useState<Record<string, number> | null>(null);
-  const [radarPath, setRadarPath] = useState('');
-  const [radarDefault, setRadarDefault] = useState('');
-  const [manualRadarPath, setManualRadarPath] = useState('');
-
-  useEffect(() => {
-    let alive = true;
-    void defaultSchedulePath().then((p) => {
-      if (alive) {
-        setRadarDefault(p);
-        setRadarPath(classRadarPath ?? p);
-        setManualRadarPath(classRadarPath ?? '');
-      }
-    });
-    return () => {
-      alive = false;
-    };
-  }, [classRadarPath]);
-
-  const refreshRadar = async () => {
-    setRadarState('loading');
-    setRadarError(null);
-    const r = await loadSchedule(true);
-    if (r.ok && r.data) {
-      setRadarState('ok');
-      setRadarCounts(r.data.counts as unknown as Record<string, number>);
-      setRadarPath(r.path);
-      // Keep the booster pointer fresh from here too, so the study banner is
-      // right even when Classes has not been opened.
-      const next = toStudyPointer(r.data.boosterPlan);
-      if (next) {
-        useBoosterStore.getState().setPointer(next);
-        void emit('booster-pointer', next);
-      }
-    } else {
-      setRadarState('no data');
-      setRadarError(r.error);
-    }
-  };
-
-  const applyRadarPath = () => {
-    const trimmed = manualRadarPath.trim();
-    setClassRadarPath(trimmed || null);
-    setRadarPath(trimmed || radarDefault);
-    void refreshRadar();
-  };
-
-  const [status, setStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
+  const [status, setStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({
+    type: null,
+    message: '',
+  });
   const [isProcessing, setIsProcessing] = useState(false);
   const [showManualPath, setShowManualPath] = useState(false);
   const [manualPathInput, setManualPathInput] = useState('');
@@ -96,7 +57,7 @@ export function SettingsView({ onRefresh }: { onRefresh?: () => void } = {}) {
   const handleExport = async () => {
     setIsProcessing(true);
     try {
-      const jsonString = JSON.stringify(collectBackupData(), null, 2);
+      const jsonString = JSON.stringify(await collectBackupData(), null, 2);
       const method = await saveBackupToDisk(jsonString);
 
       if (method === 'cancelled') {
@@ -114,7 +75,7 @@ export function SettingsView({ onRefresh }: { onRefresh?: () => void } = {}) {
 
       flash(
         'success',
-        method === 'tauri' ? 'Backup saved successfully!' : 'Native dialog unavailable — backup downloaded to Downloads.'
+        method === 'tauri' ? 'Backup saved successfully!' : 'Native dialog unavailable ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â backup downloaded to Downloads.'
       );
     } catch (error) {
       console.error(error);
@@ -167,7 +128,7 @@ export function SettingsView({ onRefresh }: { onRefresh?: () => void } = {}) {
     } catch {
       setManualPathInput(autoBackupPath ?? '');
       setShowManualPath(true);
-      flash('error', 'Folder picker unavailable — enter a path manually below.');
+      flash('error', 'Folder picker unavailable ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â enter a path manually below.');
     }
   };
 
@@ -235,104 +196,9 @@ export function SettingsView({ onRefresh }: { onRefresh?: () => void } = {}) {
         </div>
       </section>
 
-      {/* API keys and connections */}
-      <section className={card}>
-        <h3 className="text-base font-semibold text-slate-200 flex items-center gap-2 mb-1">
-          <KeyRound className="h-4 w-4 text-cyan-400" /> API keys &amp; connections
-        </h3>
-        <p className={cn(desc, 'mb-4')}>
-          Free tiers cap requests <em>per key</em>, so more than one key for a connection multiplies
-          how much you can get through. ClassRadar tracks which key is working, which is throttled
-          and which was rejected, and routes around the problem on its own.
-        </p>
-        <EngineConnectionsPanel onRefresh={onRefresh ?? (() => {})} />
-      </section>
+      {/* Everything about reading your tuition channels, in one place. */}
+      <ChannelsSettings onRefresh={onRefresh ?? (() => {})} />
 
-      {/* ClassRadar */}
-      <section className={card}>
-        <h3 className="text-base font-semibold text-slate-200 flex items-center gap-2 mb-1">
-          <Radio className="h-4 w-4 text-cyan-400" /> ClassRadar
-        </h3>
-        <p className={cn(desc, 'mb-4')}>
-          Reads your tuition channels and brings the schedule in here. It is a separate app; this
-          only points at the file it exports.
-        </p>
-
-        <div className="space-y-2">
-          <div className={row}>
-            <div className="min-w-0">
-              <p className={label}>Schedule file</p>
-              <p className={cn(desc, 'font-mono text-[10px] truncate')}>
-                {radarPath || 'not set — the default location is used'}
-              </p>
-            </div>
-            <span
-              className={cn(
-                'px-2 py-0.5 rounded text-[10px] font-medium border shrink-0',
-                radarState === 'ok'
-                  ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25'
-                  : radarState === 'loading'
-                    ? 'bg-cyan-500/10 text-cyan-300 border-cyan-500/25'
-                    : 'bg-amber-500/10 text-amber-300 border-amber-500/25'
-              )}
-            >
-              {radarState === 'ok' ? 'connected' : radarState === 'loading' ? 'reading…' : 'no data'}
-            </span>
-          </div>
-
-          {radarCounts && (
-            <p className="text-[11px] text-slate-500">
-              {radarCounts.events} classes, {radarCounts.boosterPosts} study-plan posts,{' '}
-              {radarCounts.understood} of {radarCounts.messages} messages understood
-              {classRadarCheckedAt
-                ? ` · checked ${new Date(classRadarCheckedAt).toLocaleString('en-GB')}`
-                : ''}
-            </p>
-          )}
-
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <button
-              onClick={refreshRadar}
-              className="px-3 py-1.5 rounded-lg bg-cyan-500/15 text-cyan-300 text-xs font-medium
-                         border border-cyan-500/30 hover:bg-cyan-500/25 transition-colors"
-            >
-              {radarState === 'loading' ? 'Reading…' : 'Read now'}
-            </button>
-            <input
-              value={manualRadarPath}
-              onChange={(e) => setManualRadarPath(e.target.value)}
-              placeholder={radarDefault || 'C:\\Users\\...\\ClassRadar\\data\\schedule.json'}
-              className="flex-1 min-w-[220px] bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5
-                         text-[11px] font-mono text-slate-300 outline-none focus:border-cyan-500/50"
-            />
-            <button
-              onClick={applyRadarPath}
-              className="px-3 py-1.5 rounded-lg bg-white/5 text-slate-300 text-xs font-medium
-                         border border-white/10 hover:bg-white/10 transition-colors"
-            >
-              Use this path
-            </button>
-            {classRadarPath && (
-              <button
-                onClick={() => {
-                  setClassRadarPath(null);
-                  setManualRadarPath('');
-                  void refreshRadar();
-                }}
-                className="px-2 py-1.5 text-slate-500 hover:text-slate-300 text-xs transition-colors"
-              >
-                Reset
-              </button>
-            )}
-          </div>
-
-          {radarError && (
-            <p className="text-[11px] text-amber-300/80">
-              {radarError} Open ClassRadar and press Export schedule, then Read now.
-            </p>
-          )}
-        </div>
-      </section>
 
       {/* Data & Backup */}
       <section className={card}>
@@ -353,7 +219,7 @@ export function SettingsView({ onRefresh }: { onRefresh?: () => void } = {}) {
               className="h-9 px-4 text-sm gap-2 self-start bg-cyan-600 hover:bg-cyan-500"
             >
               <Download className="h-3.5 w-3.5" />
-              {isProcessing ? 'Saving…' : 'Export'}
+              {isProcessing ? 'SavingÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦' : 'Export'}
             </Button>
           </div>
           <div className="p-4 rounded-xl bg-black/20 border border-slate-800/80 flex flex-col gap-3">
@@ -365,7 +231,7 @@ export function SettingsView({ onRefresh }: { onRefresh?: () => void } = {}) {
               <input type="file" accept=".json" onChange={handleImport} className="hidden" disabled={isProcessing} />
               <span className="inline-flex items-center gap-2 h-9 px-4 text-sm rounded-lg border border-slate-700 text-slate-300 hover:border-cyan-500/50 hover:text-cyan-300 transition-all">
                 <Upload className="h-3.5 w-3.5" />
-                {isProcessing ? 'Loading…' : 'Select File'}
+                {isProcessing ? 'LoadingÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¦' : 'Select File'}
               </span>
             </label>
           </div>
@@ -438,7 +304,7 @@ export function SettingsView({ onRefresh }: { onRefresh?: () => void } = {}) {
         <h3 className="text-base font-semibold text-slate-200 flex items-center gap-2 mb-2">
           <Info className="h-4 w-4 text-slate-500" /> About
         </h3>
-        <p className={desc}>Version 2.0.0 · Tauri v2 + React 19</p>
+        <p className={desc}>Version 2.0.0 ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â· Tauri v2 + React 19</p>
       </section>
     </div>
   );

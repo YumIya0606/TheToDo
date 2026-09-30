@@ -179,7 +179,13 @@ pub struct EnginePort(pub u16);
 /// access than this feature needs. A command keeps the permission to exactly one
 /// file, with the path validated here.
 #[tauri::command]
-fn read_classradar_schedule(export_path: String) -> Result<String, String> {
+fn read_classradar_schedule(export_path: Option<String>) -> Result<String, String> {
+    // An empty path means "wherever it should be", resolved in one place so
+    // the webview never has to know.
+    let export_path = match export_path {
+        Some(p) if !p.trim().is_empty() => p,
+        _ => classradar_default_path(),
+    };
     let path = std::path::Path::new(&export_path);
 
     // Only ever read a file that is actually a schedule export, so a mistyped
@@ -197,7 +203,7 @@ fn read_classradar_schedule(export_path: String) -> Result<String, String> {
     match std::fs::read_to_string(path) {
         Ok(text) => Ok(text),
         Err(e) => Err(format!(
-            "Could not read {export_path}: {e}. In ClassRadar, press Export schedule."
+            "Could not read {export_path}: {e}. Start the reading engine, then read the schedule."
         )),
     }
 }
@@ -362,6 +368,92 @@ async fn engine_start(app: tauri::AppHandle, engine_path: String) -> Result<u32,
     Ok(0)
 }
 
+/// Telegram API credentials, masked.
+///
+/// Stored in the app's own data so the settings screen can show at a glance
+/// whether they are set, and where they came from, without ever echoing the
+/// real values.
+#[tauri::command]
+fn classradar_credentials(app: tauri::AppHandle) -> Result<String, String> {
+    let from_env = std::env::var("TG_API_ID").unwrap_or_default();
+    let from_settings = app
+        .path()
+        .app_data_dir()
+        .ok()
+        .map(|d| d.join("engine").join("credentials.json"))
+        .filter(|p| p.exists());
+
+    let mask = |s: &str| -> String {
+        let t = s.trim();
+        if t.len() <= 10 {
+            format!("{}…", &t[..t.len().min(3)])
+        } else {
+            format!("{}…{}", &t[..5], &t[t.len() - 4..])
+        }
+    };
+
+    let (source, id, hash): (&str, String, String) = if !from_env.is_empty() {
+        (
+            "environment",
+            from_env.clone(),
+            std::env::var("TG_API_HASH").unwrap_or_default(),
+        )
+    } else if let Some(p) = from_settings {
+        let text = std::fs::read_to_string(&p).map_err(|e| e.to_string())?;
+        let v: serde_json::Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        (
+            "settings",
+            v.get("apiId")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_string(),
+            v.get("apiHash")
+                .and_then(|x| x.as_str())
+                .unwrap_or("")
+                .to_string(),
+        )
+    } else {
+        ("none", String::new(), String::new())
+    };
+
+    Ok(serde_json::json!({
+        "configured": !id.is_empty(),
+        "source": source,
+        "apiId": if id.is_empty() { String::new() } else { mask(&id) },
+        "apiHash": if hash.is_empty() { String::new() } else { mask(&hash) },
+        "envPath": std::env::var("APPDATA")
+            .map(|a| format!("{a}\\thetodo\\.env"))
+            .unwrap_or_else(|_| ".env".to_string()),
+    })
+    .to_string())
+}
+
+/// Save Telegram API credentials for the reading engine to use on next launch.
+#[tauri::command]
+fn classradar_credentials_save(
+    app: tauri::AppHandle,
+    api_id: String,
+    api_hash: String,
+) -> Result<String, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("engine");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let body = serde_json::json!({
+        "apiId": api_id.trim(),
+        "apiHash": api_hash.trim(),
+    });
+    std::fs::write(
+        dir.join("credentials.json"),
+        body.to_string(),
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok("Saved. Restart ClassRadar for the reading engine to pick these up.".to_string())
+}
+
 fn main() {
     // Global shortcut: Ctrl+Shift+X toggles the Quick Capture overlay from anywhere.
     let shortcut = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::KeyX);
@@ -402,7 +494,9 @@ fn main() {
             engine_request,
             engine_alive,
             engine_start,
-            engine_launch
+            engine_launch,
+            classradar_credentials,
+            classradar_credentials_save
         ])
         .manage(EnginePort(std::env::var("CLASSRADAR_PORT").ok().and_then(|v| v.parse().ok()).unwrap_or(5188)))
         .run(tauri::generate_context!())

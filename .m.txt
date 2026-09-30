@@ -1,0 +1,48 @@
+Fixes for the nine reported problems
+
+Channels and connections, in one place
+- They were two separate settings sections, one of which described an app that
+  no longer exists separately and pointed at its old data folder. Now one section
+  with tabs: Channels, Connections and keys, Telegram account, Schedule file.
+- Credentials saved in the app are read by the reading engine on its next
+  launch, so choosing them in the interface is enough; the .env file still wins
+  if both are set.
+
+The 35 minutes that appeared on every day
+- There was no way to edit a day, so the only record of it was a number with no
+  home. Study Analytics now edits any day and any subject in minutes, shows a
+  range instead of a fixed week, and keeps a repair action that folds anything
+  written under a bad date key into the right day instead of leaving it to
+  reappear. One date format is now the only one anything can write.
+
+The goal that always read full
+- It was a fraction of whatever free time happened to be left, so it moved every
+  day and a bar that was full one day read empty the next. The goal is now a
+  number you choose, editable in the Planner and in Analytics, and it means the
+  same thing every day.
+
+Popups that stayed open
+- The command palette and the booster count editor had nothing to dismiss them.
+  Every floating panel now closes on an outside click and on Escape, and a press
+  that begins inside a panel does not close it, so dragging a selection out of a
+  box does not throw the box away.
+
+The laggy pages
+- Two components subscribed to whole stores with no selector, so one episode tap
+  or one task edit re-rendered everything including the 460-tile booster grid.
+  Both now read only what they use, and the task card is memoised.
+
+Backup
+- Now covers all eight stores plus a pointer to the reading engine's data
+  folder, so a restore knows where the messages live.
+
+Tasks, and not mixing them with classes
+- A class is not a task. Your timetable is in the planner as a recurring
+  commitment; what a class creates is dated work. Tasks now say where each one
+  came from and which class it belongs to, and the list filters between them, so
+  a week of tuition never reads as a week of chores.
+
+One screen failing no longer takes the app with it
+- A view that threw during render left a blank window: no message, no way back,
+  and nothing on screen to explain it. Each screen is now wrapped so it names
+  what broke and offers Try again or a way out.

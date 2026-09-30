@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, X, Plus, FileText, CalendarClock, Target } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
+import { useDismissOnOutside } from '@/lib/useDismiss';
 
 export function CommandPalette() {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,11 +18,23 @@ export function CommandPalette() {
     return () => document.removeEventListener('keydown', down);
   }, []);
 
+  const close = useCallback(() => setIsOpen(false), []);
+  // Clicking anywhere outside the palette closes it, and so does Escape. Without
+  // this it sat open under the cursor with nothing to dismiss it.
+  const ref = useDismissOnOutside<HTMLDivElement>(isOpen, close);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-start justify-center pt-[20vh] p-4">
-      <div className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div
+      className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm flex items-start justify-center pt-[20vh] p-4"
+      onClick={close}
+    >
+      <div
+        ref={ref}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-lg bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+      >
         <div className="flex items-center border-b border-slate-800 px-4">
           <Search className="h-5 w-5 text-slate-400 mr-3" />
           <input

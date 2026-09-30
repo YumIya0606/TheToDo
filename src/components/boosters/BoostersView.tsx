@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useDismissOnOutside } from '@/lib/useDismiss';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Brain, Check, RotateCcw, Zap, Clock, AlertCircle, Play } from 'lucide-react';
 import {
@@ -136,7 +137,11 @@ function StatPill({
 }
 
 function SeriesPanel({ series, kind, light }: { series: BoosterSeries; kind: BoosterKind; light: boolean }) {
-  const { setSeriesCount, resetSeries } = useBoosterStore();
+  // Selected individually, not with a bare useBoosterStore(): subscribing to the
+  // whole store makes every episode tap re-render this panel and the 460-tile
+  // grid with it, which is what made the page feel laggy.
+  const setSeriesCount = useBoosterStore((s) => s.setSeriesCount);
+  const resetSeries = useBoosterStore((s) => s.resetSeries);
   // Read as its own subscription, and only used for the banner above the grid.
   // The grid below is memoised on the series props, which the pointer never
   // appears in, so a change of study plan costs this banner and zero episode
@@ -148,6 +153,11 @@ function SeriesPanel({ series, kind, light }: { series: BoosterSeries; kind: Boo
   const [rangeTo, setRangeTo] = useState('');
   const [rangeMinutes, setRangeMinutes] = useState<number | null>(null);
   const [countEdit, setCountEdit] = useState(false);
+  // A count editor that stays open under the cursor after you click away feels
+  // broken, so Escape and an outside click both put it away.
+  const countRef = useDismissOnOutside<HTMLFormElement>(countEdit, () => setCountEdit(false), {
+    escape: false,
+  });
   const [countVal, setCountVal] = useState('');
 
   const st = boosterStats(series);
@@ -366,19 +376,33 @@ function SeriesPanel({ series, kind, light }: { series: BoosterSeries; kind: Boo
               Episodes · click to edit
             </span>
             {countEdit ? (
-              <form onSubmit={applyCount} className="flex items-center gap-1.5">
+              <form
+                ref={countRef}
+                onSubmit={applyCount}
+                // Escape puts it away without changing the count.
+                onKeyDown={(e) => { if (e.key === 'Escape') setCountEdit(false); }}
+                className="flex items-center gap-1.5"
+              >
                 <input
                   autoFocus
                   value={countVal}
                   onChange={(e) => setCountVal(e.target.value)}
                   inputMode="numeric"
                   placeholder={String(st.total)}
+                  aria-label="Episode count"
                   className={cn(
                     'w-20 rounded-lg px-2 py-1 text-xs outline-none border tabular-nums',
                     light ? 'bg-slate-50 border-slate-200 focus:border-cyan-400' : 'bg-white/[0.04] border-white/10 focus:border-cyan-500/50'
                   )}
                 />
                 <button type="submit" className="px-2 py-1 rounded-lg text-xs font-semibold bg-cyan-500 text-white">Set</button>
+                <button
+                  type="button"
+                  onClick={() => setCountEdit(false)}
+                  className="px-2 py-1 rounded-lg text-xs text-slate-500 hover:text-slate-300"
+                >
+                  Cancel
+                </button>
               </form>
             ) : (
               <button

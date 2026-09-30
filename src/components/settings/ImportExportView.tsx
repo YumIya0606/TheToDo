@@ -17,7 +17,7 @@ export function ImportExportView() {
   const handleExport = async () => {
     setIsProcessing(true);
     try {
-      const backupData = collectBackupData();
+      const backupData = await collectBackupData();
       const jsonString = JSON.stringify(backupData, null, 2);
       const method = await saveBackupToDisk(jsonString);
 

@@ -19,6 +19,8 @@ export interface TaskDraft {
   dueTime: string | null;
   subject: string;
   tags: string[];
+  /** The class this work belongs to. */
+  relatedClass: string;
 }
 
 /** Does this reading actually ask something of the student? */
@@ -36,7 +38,7 @@ export function toTaskDraft(event: RadarEvent): TaskDraft | null {
   if (!isWork) return null;
 
   const subject = toPlannerSubject(event.subject);
-  const title = event.action ? `${event.title} — ${event.action}` : event.title;
+  const title = event.action ? `${event.title} â€” ${event.action}` : event.title;
 
   return {
     title: title.slice(0, 120),
@@ -47,6 +49,9 @@ export function toTaskDraft(event: RadarEvent): TaskDraft | null {
     dueDate: event.date,
     dueTime: event.startTime ?? null,
     subject,
+    // The class name travels with the task, so the link to your timetable is
+    // visible without repeating the class in your list every week.
+    relatedClass: event.title,
     tags: ['class', event.classType, event.isFullSyllabus ? 'full-syllabus' : 'normal'].filter(
       Boolean
     ) as string[],
@@ -101,6 +106,8 @@ export function commitDrafts(drafts: TaskDraft[]): number {
       category: d.subject,
       tags: d.tags,
       priority: 'high',
+      origin: 'class',
+      relatedClass: d.relatedClass,
     });
     n++;
   }

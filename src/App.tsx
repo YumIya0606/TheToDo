@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Sidebar } from './components/common/Sidebar';
 import { CommandPalette } from './components/common/CommandPalette';
+import { ViewBoundary } from './components/common/ViewBoundary';
 import { FocusOverlay } from './components/common/FocusOverlay';
 import { TaskModal } from './components/todo/TaskModal';
 import { NoteModal } from './components/notes/NoteModal';
@@ -119,6 +120,20 @@ function DueWatcher() {
   return null;
 }
 
+/** Used in the error boundary, so a failure names the screen it came from. */
+const SCREEN_NAMES: Record<string, string> = {
+  dashboard: 'Dashboard',
+  planner: 'Study Planner',
+  tasks: 'Tasks',
+  notes: 'Notes',
+  diary: 'Diary',
+  boosters: 'Boosters',
+  silentboy: 'SilentBoy',
+  tags: 'Tags',
+  automation: 'Automation',
+  settings: 'Settings',
+  classes: 'Classes',
+};
 function App() {
   // Subscribe to single values rather than whole stores.
   //
@@ -587,7 +602,15 @@ function App() {
             "mx-auto pb-10 transition-all duration-500",
             isSilentMode ? "max-w-none h-full" : isSilentBoy ? "max-w-none h-full pb-0" : "max-w-7xl"
           )}>
-            {renderView()}
+            {/* One screen failing should not take the window with it: without a
+                boundary, a throw in any view leaves a blank app with no way
+                back and nothing on screen to say why. */}
+            <ViewBoundary
+              screen={SCREEN_NAMES[currentView] ?? 'current'}
+              onLeave={() => setView('dashboard')}
+            >
+              {renderView()}
+            </ViewBoundary>
           </div>
         </main>
       </FocusOverlay>

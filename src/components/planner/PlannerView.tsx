@@ -49,7 +49,11 @@ export function PlannerView() {
     seedTimetable, toggleOffThisWeek,
   } = usePlannerStore();
 
-  const { studyAnalytics, selectedSubject, currentSessionSeconds, setSubject, toggleFocusMode } = useFocusStore();
+  const studyAnalytics = useFocusStore((s) => s.studyAnalytics);
+  const selectedSubject = useFocusStore((s) => s.selectedSubject);
+  const currentSessionSeconds = useFocusStore((s) => s.currentSessionSeconds);
+  const setSubject = useFocusStore((s) => s.setSubject);
+  const toggleFocusMode = useFocusStore((s) => s.toggleFocusMode);
 
   // The selected weekday, and a concrete date for it, so a fortnightly class can
   // be excluded on its off weeks instead of blocking time every week.
@@ -82,7 +86,14 @@ export function PlannerView() {
 
   const tKey = todayKey();
   const free = freeMinutesForDay(commitments, day, selectedDate);
-  const budget = Math.round(free * studyRatio);
+
+  // The goal is a number the student chose, not a slice of whatever free time
+  // happens to be left. Scaling it with the day's free minutes made the target
+  // move every day, so a bar that was full one day read empty the next.
+  const goalMinutes = useFocusStore((s) => s.goalFor(tKey));
+  const goalOverrides = useFocusStore((s) => s.goalOverrides);
+  const setDailyGoal = useFocusStore((s) => s.setDailyGoal);
+  const budget = goalMinutes * 60;
   const allocations = allocateSubjects(free, enabledSubjects, weakSubjects, studyRatio);
 
   const studiedBySubject: Record<string, number> = {};
@@ -223,9 +234,32 @@ export function PlannerView() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard icon={Clock} label="Free time" value={fmtMinutes(free)} hint={FULL_DAY_LABELS[day]} />
-        <StatCard icon={Target} label="Study budget" value={fmtMinutes(budget)} hint={`${Math.round(studyRatio * 100)}% of free time`} />
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+          <div className="flex items-center gap-2 mb-1">
+            <Target className="h-4 w-4 text-cyan-400" />
+            <span className="text-[10px] uppercase tracking-wider text-slate-500">
+              Daily goal
+            </span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <input
+              type="number"
+              min={15}
+              max={840}
+              step={15}
+              value={goalMinutes}
+              onChange={(e) => setDailyGoal(Number(e.target.value) || 120)}
+              className="w-20 bg-transparent text-2xl font-bold text-white tabular-nums outline-none border-b border-transparent focus:border-cyan-500/60 transition-colors"
+              aria-label="Daily study goal in minutes"
+            />
+            <span className="text-sm text-slate-500">min</span>
+          </div>
+          <p className="text-[10px] text-slate-500 mt-1">
+            {goalOverrides?.[tKey] ? 'Just for today' : 'Every day'}
+          </p>
+        </div>
         <StatCard icon={TrendingUp} label="Studied today" value={fmtMinutes(studiedTotal / 60)} hint={tKey} />
-        <StatCard icon={Zap} label="Today's progress" value={`${overallPct}%`} hint={overallPct >= 100 ? 'Goal hit! 🎉' : `${fmtMinutes((budget - studiedTotal / 60) || 0)} to go`} />
+        <StatCard icon={Zap} label="Today's progress" value={`${overallPct}%`} hint={overallPct >= 100 ? 'Goal hit' : `${fmtMinutes((budget - studiedTotal / 60) || 0)} to go`} />
       </div>
 
       {/* Overall progress bar */}

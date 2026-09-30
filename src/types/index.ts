@@ -34,6 +34,17 @@ export interface Task {
   isScheduled?: boolean;
   dueTime?: string; // Format "HH:mm"
   notified?: boolean; // Track if notification already sent
+  /**
+   * Where this came from.
+   *
+   * A class is not a task. Your timetable lives in the planner as a recurring
+   * commitment; what a class creates is dated work — "attempt Paper 02", "watch
+   * EP 307" — and that is what belongs here. Marking the origin lets the list
+   * show the two apart, so a week of classes never reads as a week of chores.
+   */
+  origin?: 'manual' | 'class';
+  /** The class this work belongs to, so context travels with the task. */
+  relatedClass?: string;
   createdAt: string;
   updatedAt: string;
 }

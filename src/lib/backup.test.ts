@@ -75,8 +75,8 @@ function seed() {
 describe('backup coverage', () => {
   beforeEach(seed);
 
-  it('includes every persisted store', () => {
-    const data = collectBackupData() as unknown as Record<string, unknown>;
+  it('includes every persisted store', async () => {
+    const data = (await collectBackupData()) as unknown as Record<string, unknown>;
     for (const [field, key] of STORES) {
       // Only the four seeded stores are expected to be present here; the test
       // below covers a key that was never written.
@@ -85,16 +85,16 @@ describe('backup coverage', () => {
     }
   });
 
-  it('carries the planner, the boosters and the study analytics', () => {
-    const data = collectBackupData() as unknown as Record<string, any>;
+  it('carries the planner, the boosters and the study analytics', async () => {
+    const data = (await collectBackupData()) as unknown as Record<string, any>;
     expect(data.planner.state.commitments[0].label).toBe('Physics Theory Class');
     expect(data.boosters.state.series[0].episodes[0].currentEpisode).toBe(41);
     expect(data.focus.state.studyAnalytics['2026-09-28']['AL Physics']).toBe(3600);
   });
 
-  it('leaves a store that was never written absent, not empty', () => {
+  it('leaves a store that was never written absent, not empty', async () => {
     localStorage.removeItem('thetodo-automation-jobs');
-    const data = collectBackupData() as unknown as Record<string, unknown>;
+    const data = (await collectBackupData()) as unknown as Record<string, unknown>;
     expect(data.automation).toBeUndefined();
   });
 });
@@ -102,8 +102,8 @@ describe('backup coverage', () => {
 describe('backup restore', () => {
   beforeEach(seed);
 
-  it('round-trips every store it captured', () => {
-    const saved = collectBackupData();
+  it('round-trips every store it captured', async () => {
+    const saved = await collectBackupData();
     const expected = new Set(
       STORES.filter(
         ([field]) => (saved as unknown as Record<string, unknown>)[field] !== undefined
@@ -113,7 +113,7 @@ describe('backup restore', () => {
     const restored = restoreBackupData(saved);
     expect(new Set(restored)).toEqual(expected);
 
-    const after = collectBackupData() as Record<string, any>;
+    const after = (await collectBackupData()) as Record<string, any>;
     expect(after.planner.state.commitments[0].label).toBe('Physics Theory Class');
     expect(after.boosters.state.series[0].episodes[0].currentEpisode).toBe(41);
     expect(after.focus.state.studyAnalytics['2026-09-28']['AL Physics']).toBe(3600);

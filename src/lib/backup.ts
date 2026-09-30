@@ -12,6 +12,13 @@ export interface BackupData {
   boosters: unknown;
   /** Study-time analytics from Focus Mode. */
   focus: unknown;
+  /**
+   * A pointer to the reading engine's data folder, so a restore knows where to
+   * look. The messages themselves are not copied into a JSON backup: they are
+   * re-readable from Telegram at any time, and embedding a database in a
+   * download would make the file enormous and useless on its own.
+   */
+  engine: unknown;
 }
 
 export type SaveMethod = 'tauri' | 'browser' | 'cancelled';
@@ -46,10 +53,12 @@ const STORAGE_KEYS = {
   focus: 'thetodo-focus-storage',
 } as const;
 
-/** Aggregate all persisted Zustand/localStorage data into one backup object. */
-export function collectBackupData(): BackupData {
+/**
+ * Aggregate all persisted Zustand/localStorage data into one backup object.
+ */
+export async function collectBackupData(): Promise<BackupData> {
   const out = {
-    version: '1.1',
+    version: '1.2',
     exportedAt: new Date().toISOString(),
   } as BackupData;
   for (const [field, key] of Object.entries(STORAGE_KEYS)) {
@@ -60,6 +69,16 @@ export function collectBackupData(): BackupData {
       undefined
     );
   }
+
+  // Note where the reading engine keeps its messages, so a restore on another
+  // machine can be pointed at the right place.
+  try {
+    const { engineDataDir } = await import('./engine');
+    out.engine = { dataDir: await engineDataDir() };
+  } catch {
+    out.engine = { dataDir: null };
+  }
+
   return out;
 }
 

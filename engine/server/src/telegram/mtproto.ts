@@ -15,9 +15,32 @@ const SESSION_FILE = path.join(DATA_DIR, "telegram.session");
  * settings, so a student can configure this from the interface without editing
  * a file and restarting into a build step.
  */
-const API_ID = Number(process.env.TG_API_ID ?? (getSetting("tg.apiId", "") as string) ?? 0);
+/**
+ * Credentials come from the environment when set, otherwise from the file the
+ * desktop app writes, so choosing them in Settings is enough and no .env edit is
+ * needed.
+ */
+function savedCredentials(): { id: string; hash: string } {
+  const candidates = [
+    process.env.CLASSRADAR_CREDENTIALS,
+    path.join(DATA_DIR, 'credentials.json'),
+  ].filter(Boolean) as string[];
+  for (const file of candidates) {
+    try {
+      if (!fs.existsSync(file)) continue;
+      const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, string>;
+      if (raw.apiId && raw.apiHash) return { id: String(raw.apiId), hash: String(raw.apiHash) };
+    } catch {
+      /* try the next candidate */
+    }
+  }
+  return { id: '', hash: '' };
+}
+
+const saved = savedCredentials();
+const API_ID = Number(process.env.TG_API_ID ?? saved.id ?? 0);
 const API_HASH =
-  (process.env.TG_API_HASH as string) || (getSetting("tg.apiHash", "") as string) || "";
+  (process.env.TG_API_HASH as string) || saved.hash || (getSetting('tg.apiHash', '') as string) || '';
 
 export const MTP_CONFIGURED = Boolean(API_ID && API_HASH);
 export const SESSION_PATH = SESSION_FILE;

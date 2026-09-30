@@ -1,4 +1,5 @@
-import { CheckSquare, Trash2 } from 'lucide-react';
+import { memo } from 'react';
+import { CalendarClock, CheckSquare, Trash2 } from 'lucide-react';
 import { useTaskStore } from '@/stores/taskStore';
 import { InteractivePriorityBadge } from '@/components/tasks/InteractivePriorityBadge';
 import { cn } from '@/lib/utils';
@@ -8,8 +9,9 @@ interface TaskCardProps {
   compact?: boolean;
 }
 
-export function TaskCard({ task, compact = false }: TaskCardProps) {
-  const { updateTask, deleteTask } = useTaskStore();
+export const TaskCard = memo(function TaskCard({ task, compact = false }: TaskCardProps) {
+  const updateTask = useTaskStore((s) => s.updateTask);
+  const deleteTask = useTaskStore((s) => s.deleteTask);
 
   const handleStatusToggle = () => {
     const newStatus = task.status === 'completed' ? 'todo' : 'completed';
@@ -26,13 +28,26 @@ export function TaskCard({ task, compact = false }: TaskCardProps) {
       <div className="flex items-start gap-3">
         <InteractivePriorityBadge task={task} />
         
-        <div className="flex-1 min-w-0">
-          <h4 className={cn(
-            "font-medium truncate transition-all",
-            task.status === 'completed' ? "text-slate-500 line-through" : "text-white"
-          )}>
-            {task.title}
-          </h4>
+          <div className="flex-1 min-w-0">
+            {/* Where this came from. A class is not a task, so work a class
+                creates says which class, and the class itself stays in the
+                planner as the recurring thing it is. */}
+            {task.origin === 'class' && (
+              <span
+                className="inline-flex items-center gap-1 mb-1 px-1.5 py-px rounded text-[9px]
+                           bg-cyan-500/12 text-cyan-300/90 border border-cyan-500/20 max-w-full"
+                title="This work came from a class in your timetable"
+              >
+                <CalendarClock className="h-2.5 w-2.5 shrink-0" />
+                <span className="truncate">{task.relatedClass ?? 'From a class'}</span>
+              </span>
+            )}
+            <h4 className={cn(
+              "font-medium truncate transition-all",
+              task.status === 'completed' ? "text-slate-500 line-through" : "text-white"
+            )}>
+              {task.title}
+            </h4>
           
           {!compact && task.description && (
             <p className="text-sm text-slate-400 mt-1 line-clamp-2">{task.description}</p>
@@ -73,4 +88,4 @@ export function TaskCard({ task, compact = false }: TaskCardProps) {
       </div>
     </div>
   );
-}
+});
