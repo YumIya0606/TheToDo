@@ -275,14 +275,27 @@ fn engine_bundle_path(app: tauri::AppHandle) -> Result<String, String> {
     ))
 }
 
-/// Where the engine keeps its data, inside the app's own data folder so there is
-/// one thing to back up rather than two.
+/// Where the reading engine keeps its data.
+///
+/// One folder, deliberately: the messages it has read, its database, and the
+/// Telegram session all live together, so there is nothing to keep in sync and
+/// one thing to back up. It is `<APPDATA>/ClassRadar/data` because that is where
+/// the history already is — moving it again would mean re-reading channels and
+/// re-authenticating Telegram for no gain.
 #[tauri::command]
 fn engine_data_dir(app: tauri::AppHandle) -> String {
-    app.path()
+    // Honour an explicit choice first.
+    if let Ok(custom) = std::env::var("THETODO_ENGINE_DATA") {
+        if !custom.trim().is_empty() {
+            return custom;
+        }
+    }
+    let base = app
+        .path()
         .app_data_dir()
-        .map(|d| d.join("engine").to_string_lossy().to_string())
-        .unwrap_or_else(|_| "engine-data".to_string())
+        .map(|d| d.parent().map(|p| p.to_path_buf()).unwrap_or(d))
+        .unwrap_or_default();
+    base.join("ClassRadar").join("data").to_string_lossy().to_string()
 }
 
 /// Where ClassRadar is expected to live, so the default path is not a guess.
